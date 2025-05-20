@@ -198,3 +198,4 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c.server()
 	return &c
 }
+// lab1
