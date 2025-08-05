@@ -11,7 +11,7 @@ import (
 
 	"6.5840/labrpc"
 	"6.5840/raftapi"
-	"6.5840/tester1"
+	tester "6.5840/tester1"
 )
 
 type Test struct {
@@ -153,6 +153,7 @@ func (ts *Test) checkNoLeader() {
 		if ts.g.IsConnected(i) {
 			_, is_leader := ts.srvs[i].GetState()
 			if is_leader {
+				// fmt.Printf("Wrong Here\n")
 				details := fmt.Sprintf("leader = %v", i)
 				tester.AnnotateCheckerFailure("unexpected leader found", details)
 				ts.Fatalf(details)

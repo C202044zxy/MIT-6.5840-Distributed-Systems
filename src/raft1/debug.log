@@ -1,0 +1,1069 @@
+Svr 0 becomes leader
+Svr 4 receives append entries message
+Svr 1 receives append entries message
+Svr 3 receives append entries message
+Svr 2 receives append entries message
+Svr 0 receives command
+Svr 0 log length 2 after append
+Svr 1 receives append entries message
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 3 receives append entries message
+Agree at log entry 1
+Svr 0 Apply log 1 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 1 receives append entries message
+Svr 3 receives append entries message
+Svr 4 Apply log 1 into the channel
+Svr 1 Apply log 1 into the channel
+Svr 2 Apply log 1 into the channel
+Svr 3 Apply log 1 into the channel
+Svr 4 receives append entries message
+Svr 1 receives append entries message
+Svr 2 receives append entries message
+Svr 3 receives append entries message
+Svr 1 receives append entries message
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Svr 3 receives append entries message
+Svr 4 receives append entries message
+Svr 1 receives append entries message
+Svr 2 receives append entries message
+Svr 3 receives append entries message
+Svr 0 receives command
+Svr 0 log length 3 after append
+Svr 0 receives command
+Svr 0 log length 4 after append
+Svr 0 receives command
+Svr 0 log length 5 after append
+Svr 0 receives command
+Svr 0 log length 6 after append
+Svr 0 receives command
+Svr 0 log length 7 after append
+Svr 0 receives command
+Svr 0 log length 8 after append
+Svr 0 receives command
+Svr 0 log length 9 after append
+Svr 0 receives command
+Svr 0 log length 10 after append
+Svr 0 receives command
+Svr 0 log length 11 after append
+Svr 0 receives command
+Svr 0 log length 12 after append
+Svr 0 receives command
+Svr 0 log length 13 after append
+Svr 0 receives command
+Svr 0 log length 14 after append
+Svr 0 receives command
+Svr 0 log length 15 after append
+Svr 0 receives command
+Svr 0 log length 16 after append
+Svr 0 receives command
+Svr 0 log length 17 after append
+Svr 0 receives command
+Svr 0 log length 18 after append
+Svr 0 receives command
+Svr 0 log length 19 after append
+Svr 0 receives command
+Svr 0 log length 20 after append
+Svr 0 receives command
+Svr 0 log length 21 after append
+Svr 0 receives command
+Svr 0 log length 22 after append
+Svr 0 receives command
+Svr 0 log length 23 after append
+Svr 0 receives command
+Svr 0 log length 24 after append
+Svr 0 receives command
+Svr 0 log length 25 after append
+Svr 0 receives command
+Svr 0 log length 26 after append
+Svr 0 receives command
+Svr 0 log length 27 after append
+Svr 0 receives command
+Svr 0 log length 28 after append
+Svr 0 receives command
+Svr 0 log length 29 after append
+Svr 0 receives command
+Svr 0 log length 30 after append
+Svr 0 receives command
+Svr 0 log length 31 after append
+Svr 0 receives command
+Svr 0 log length 32 after append
+Svr 0 receives command
+Svr 0 log length 33 after append
+Svr 0 receives command
+Svr 0 log length 34 after append
+Svr 0 receives command
+Svr 0 log length 35 after append
+Svr 0 receives command
+Svr 0 log length 36 after append
+Svr 0 receives command
+Svr 0 log length 37 after append
+Svr 0 receives command
+Svr 0 log length 38 after append
+Svr 0 receives command
+Svr 0 log length 39 after append
+Svr 0 receives command
+Svr 0 log length 40 after append
+Svr 0 receives command
+Svr 0 log length 41 after append
+Svr 0 receives command
+Svr 0 log length 42 after append
+Svr 0 receives command
+Svr 0 log length 43 after append
+Svr 0 receives command
+Svr 0 log length 44 after append
+Svr 0 receives command
+Svr 0 log length 45 after append
+Svr 0 receives command
+Svr 0 log length 46 after append
+Svr 0 receives command
+Svr 0 log length 47 after append
+Svr 0 receives command
+Svr 0 log length 48 after append
+Svr 0 receives command
+Svr 0 log length 49 after append
+Svr 0 receives command
+Svr 0 log length 50 after append
+Svr 0 receives command
+Svr 0 log length 51 after append
+Svr 0 receives command
+Svr 0 log length 52 after append
+Svr 1 receives append entries message
+Svr 1 receives append entries message
+Svr 1 receives append entries message
+Svr 3 becomes leader
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 3 receives command
+Svr 3 log length 3 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 2
+Svr 3 Apply log 2 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 4 Apply log 2 into the channel
+Svr 2 Apply log 2 into the channel
+Svr 3 receives command
+Svr 3 log length 4 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 3
+Svr 3 Apply log 3 into the channel
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Svr 4 Apply log 3 into the channel
+Svr 2 Apply log 3 into the channel
+Svr 3 receives command
+Svr 3 log length 5 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 4
+Svr 3 Apply log 4 into the channel
+Svr 4 receives append entries message
+Svr 4 Apply log 4 into the channel
+Svr 2 receives append entries message
+Svr 2 Apply log 4 into the channel
+Svr 3 receives command
+Svr 3 log length 6 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 5
+Svr 3 Apply log 5 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 4 Apply log 5 into the channel
+Svr 2 Apply log 5 into the channel
+Svr 3 receives command
+Svr 3 log length 7 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 6
+Svr 3 Apply log 6 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 2 Apply log 6 into the channel
+Svr 4 Apply log 6 into the channel
+Svr 3 receives command
+Svr 3 log length 8 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 7
+Svr 3 Apply log 7 into the channel
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Svr 4 Apply log 7 into the channel
+Svr 2 Apply log 7 into the channel
+Svr 3 receives command
+Svr 3 log length 9 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 8
+Svr 3 Apply log 8 into the channel
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Svr 4 Apply log 8 into the channel
+Svr 2 Apply log 8 into the channel
+Svr 3 receives command
+Svr 3 log length 10 after append
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Agree at log entry 9
+Svr 3 Apply log 9 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 4 Apply log 9 into the channel
+Svr 2 Apply log 9 into the channel
+Svr 3 receives command
+Svr 3 log length 11 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 10
+Svr 3 Apply log 10 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 2 Apply log 10 into the channel
+Svr 4 Apply log 10 into the channel
+Svr 3 receives command
+Svr 3 log length 12 after append
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Agree at log entry 11
+Svr 3 Apply log 11 into the channel
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Svr 4 Apply log 11 into the channel
+Svr 2 Apply log 11 into the channel
+Svr 3 receives command
+Svr 3 log length 13 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 12
+Svr 3 Apply log 12 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 2 Apply log 12 into the channel
+Svr 4 Apply log 12 into the channel
+Svr 3 receives command
+Svr 3 log length 14 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 13
+Svr 3 Apply log 13 into the channel
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Svr 4 Apply log 13 into the channel
+Svr 2 Apply log 13 into the channel
+Svr 3 receives command
+Svr 3 log length 15 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 14
+Svr 3 Apply log 14 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 2 Apply log 14 into the channel
+Svr 4 Apply log 14 into the channel
+Svr 3 receives command
+Svr 3 log length 16 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 15
+Svr 3 Apply log 15 into the channel
+Svr 4 receives append entries message
+Svr 4 Apply log 15 into the channel
+Svr 2 receives append entries message
+Svr 2 Apply log 15 into the channel
+Svr 3 receives command
+Svr 3 log length 17 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 16
+Svr 3 Apply log 16 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 4 Apply log 16 into the channel
+Svr 2 Apply log 16 into the channel
+Svr 3 receives command
+Svr 3 log length 18 after append
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Agree at log entry 17
+Svr 3 Apply log 17 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 4 Apply log 17 into the channel
+Svr 2 Apply log 17 into the channel
+Svr 3 receives command
+Svr 3 log length 19 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 18
+Svr 3 Apply log 18 into the channel
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Svr 2 Apply log 18 into the channel
+Svr 4 Apply log 18 into the channel
+Svr 3 receives command
+Svr 3 log length 20 after append
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Agree at log entry 19
+Svr 3 Apply log 19 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 2 Apply log 19 into the channel
+Svr 4 Apply log 19 into the channel
+Svr 3 receives command
+Svr 3 log length 21 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 20
+Svr 3 Apply log 20 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 4 Apply log 20 into the channel
+Svr 2 Apply log 20 into the channel
+Svr 3 receives command
+Svr 3 log length 22 after append
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Agree at log entry 21
+Svr 3 Apply log 21 into the channel
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Svr 2 Apply log 21 into the channel
+Svr 4 Apply log 21 into the channel
+Svr 3 receives command
+Svr 3 log length 23 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 22
+Svr 3 Apply log 22 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 4 Apply log 22 into the channel
+Svr 2 Apply log 22 into the channel
+Svr 3 receives command
+Svr 3 log length 24 after append
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Agree at log entry 23
+Svr 3 Apply log 23 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 2 Apply log 23 into the channel
+Svr 4 Apply log 23 into the channel
+Svr 3 receives command
+Svr 3 log length 25 after append
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Agree at log entry 24
+Svr 3 Apply log 24 into the channel
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Svr 2 Apply log 24 into the channel
+Svr 4 Apply log 24 into the channel
+Svr 3 receives command
+Svr 3 log length 26 after append
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Agree at log entry 25
+Svr 3 Apply log 25 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 2 Apply log 25 into the channel
+Svr 4 Apply log 25 into the channel
+Svr 3 receives command
+Svr 3 log length 27 after append
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Agree at log entry 26
+Svr 3 Apply log 26 into the channel
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Svr 4 Apply log 26 into the channel
+Svr 2 Apply log 26 into the channel
+Svr 3 receives command
+Svr 3 log length 28 after append
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Agree at log entry 27
+Svr 3 Apply log 27 into the channel
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Svr 2 Apply log 27 into the channel
+Svr 4 Apply log 27 into the channel
+Svr 3 receives command
+Svr 3 log length 29 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 28
+Svr 3 Apply log 28 into the channel
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Svr 2 Apply log 28 into the channel
+Svr 4 Apply log 28 into the channel
+Svr 3 receives command
+Svr 3 log length 30 after append
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Agree at log entry 29
+Svr 3 Apply log 29 into the channel
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Svr 4 Apply log 29 into the channel
+Svr 2 Apply log 29 into the channel
+Svr 3 receives command
+Svr 3 log length 31 after append
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Agree at log entry 30
+Svr 3 Apply log 30 into the channel
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Svr 2 Apply log 30 into the channel
+Svr 4 Apply log 30 into the channel
+Svr 3 receives command
+Svr 3 log length 32 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 31
+Svr 3 Apply log 31 into the channel
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Svr 2 Apply log 31 into the channel
+Svr 4 Apply log 31 into the channel
+Svr 3 receives command
+Svr 3 log length 33 after append
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Agree at log entry 32
+Svr 3 Apply log 32 into the channel
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Svr 2 Apply log 32 into the channel
+Svr 4 Apply log 32 into the channel
+Svr 3 receives command
+Svr 3 log length 34 after append
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Agree at log entry 33
+Svr 3 Apply log 33 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 2 Apply log 33 into the channel
+Svr 4 Apply log 33 into the channel
+Svr 3 receives command
+Svr 3 log length 35 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 34
+Svr 3 Apply log 34 into the channel
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Svr 2 Apply log 34 into the channel
+Svr 4 Apply log 34 into the channel
+Svr 3 receives command
+Svr 3 log length 36 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 35
+Svr 3 Apply log 35 into the channel
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Svr 2 Apply log 35 into the channel
+Svr 4 Apply log 35 into the channel
+Svr 3 receives command
+Svr 3 log length 37 after append
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Agree at log entry 36
+Svr 3 Apply log 36 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 4 Apply log 36 into the channel
+Svr 2 Apply log 36 into the channel
+Svr 3 receives command
+Svr 3 log length 38 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 37
+Svr 3 Apply log 37 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 4 Apply log 37 into the channel
+Svr 2 Apply log 37 into the channel
+Svr 3 receives command
+Svr 3 log length 39 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 38
+Svr 3 Apply log 38 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 2 Apply log 38 into the channel
+Svr 4 Apply log 38 into the channel
+Svr 3 receives command
+Svr 3 log length 40 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 39
+Svr 3 Apply log 39 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 2 Apply log 39 into the channel
+Svr 4 Apply log 39 into the channel
+Svr 3 receives command
+Svr 3 log length 41 after append
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Agree at log entry 40
+Svr 3 Apply log 40 into the channel
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Svr 2 Apply log 40 into the channel
+Svr 4 Apply log 40 into the channel
+Svr 3 receives command
+Svr 3 log length 42 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 41
+Svr 3 Apply log 41 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 2 Apply log 41 into the channel
+Svr 4 Apply log 41 into the channel
+Svr 3 receives command
+Svr 3 log length 43 after append
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Agree at log entry 42
+Svr 3 Apply log 42 into the channel
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Svr 2 Apply log 42 into the channel
+Svr 4 Apply log 42 into the channel
+Svr 3 receives command
+Svr 3 log length 44 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 43
+Svr 3 Apply log 43 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 2 Apply log 43 into the channel
+Svr 4 Apply log 43 into the channel
+Svr 3 receives command
+Svr 3 log length 45 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 44
+Svr 3 Apply log 44 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 2 Apply log 44 into the channel
+Svr 4 Apply log 44 into the channel
+Svr 3 receives command
+Svr 3 log length 46 after append
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Agree at log entry 45
+Svr 3 Apply log 45 into the channel
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Svr 4 Apply log 45 into the channel
+Svr 2 Apply log 45 into the channel
+Svr 3 receives command
+Svr 3 log length 47 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 46
+Svr 3 Apply log 46 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 4 Apply log 46 into the channel
+Svr 2 Apply log 46 into the channel
+Svr 3 receives command
+Svr 3 log length 48 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 47
+Svr 3 Apply log 47 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 2 Apply log 47 into the channel
+Svr 4 Apply log 47 into the channel
+Svr 3 receives command
+Svr 3 log length 49 after append
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Agree at log entry 48
+Svr 3 Apply log 48 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 2 Apply log 48 into the channel
+Svr 4 Apply log 48 into the channel
+Svr 3 receives command
+Svr 3 log length 50 after append
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Agree at log entry 49
+Svr 3 Apply log 49 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 4 Apply log 49 into the channel
+Svr 2 Apply log 49 into the channel
+Svr 3 receives command
+Svr 3 log length 51 after append
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Agree at log entry 50
+Svr 3 Apply log 50 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 4 Apply log 50 into the channel
+Svr 2 Apply log 50 into the channel
+Svr 3 receives command
+Svr 3 log length 52 after append
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Agree at log entry 51
+Svr 3 Apply log 51 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 2 Apply log 51 into the channel
+Svr 4 Apply log 51 into the channel
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 4 receives append entries message
+Svr 2 receives append entries message
+Svr 3 receives command
+Svr 3 log length 53 after append
+Svr 3 receives command
+Svr 3 log length 54 after append
+Svr 3 receives command
+Svr 3 log length 55 after append
+Svr 3 receives command
+Svr 3 log length 56 after append
+Svr 3 receives command
+Svr 3 log length 57 after append
+Svr 3 receives command
+Svr 3 log length 58 after append
+Svr 3 receives command
+Svr 3 log length 59 after append
+Svr 3 receives command
+Svr 3 log length 60 after append
+Svr 3 receives command
+Svr 3 log length 61 after append
+Svr 3 receives command
+Svr 3 log length 62 after append
+Svr 3 receives command
+Svr 3 log length 63 after append
+Svr 3 receives command
+Svr 3 log length 64 after append
+Svr 3 receives command
+Svr 3 log length 65 after append
+Svr 3 receives command
+Svr 3 log length 66 after append
+Svr 3 receives command
+Svr 3 log length 67 after append
+Svr 3 receives command
+Svr 3 log length 68 after append
+Svr 3 receives command
+Svr 3 log length 69 after append
+Svr 3 receives command
+Svr 3 log length 70 after append
+Svr 3 receives command
+Svr 3 log length 71 after append
+Svr 3 receives command
+Svr 3 log length 72 after append
+Svr 3 receives command
+Svr 3 log length 73 after append
+Svr 3 receives command
+Svr 3 log length 74 after append
+Svr 3 receives command
+Svr 3 log length 75 after append
+Svr 3 receives command
+Svr 3 log length 76 after append
+Svr 3 receives command
+Svr 3 log length 77 after append
+Svr 3 receives command
+Svr 3 log length 78 after append
+Svr 3 receives command
+Svr 3 log length 79 after append
+Svr 3 receives command
+Svr 3 log length 80 after append
+Svr 3 receives command
+Svr 3 log length 81 after append
+Svr 3 receives command
+Svr 3 log length 82 after append
+Svr 3 receives command
+Svr 3 log length 83 after append
+Svr 3 receives command
+Svr 3 log length 84 after append
+Svr 3 receives command
+Svr 3 log length 85 after append
+Svr 3 receives command
+Svr 3 log length 86 after append
+Svr 3 receives command
+Svr 3 log length 87 after append
+Svr 3 receives command
+Svr 3 log length 88 after append
+Svr 3 receives command
+Svr 3 log length 89 after append
+Svr 3 receives command
+Svr 3 log length 90 after append
+Svr 3 receives command
+Svr 3 log length 91 after append
+Svr 3 receives command
+Svr 3 log length 92 after append
+Svr 3 receives command
+Svr 3 log length 93 after append
+Svr 3 receives command
+Svr 3 log length 94 after append
+Svr 3 receives command
+Svr 3 log length 95 after append
+Svr 3 receives command
+Svr 3 log length 96 after append
+Svr 3 receives command
+Svr 3 log length 97 after append
+Svr 3 receives command
+Svr 3 log length 98 after append
+Svr 3 receives command
+Svr 3 log length 99 after append
+Svr 3 receives command
+Svr 3 log length 100 after append
+Svr 3 receives command
+Svr 3 log length 101 after append
+Svr 3 receives command
+Svr 3 log length 102 after append
+Svr 4 receives append entries message
+Svr 4 receives append entries message
+Svr 4 receives append entries message
+Svr 0 receives command
+Svr 0 log length 53 after append
+Svr 2 becomes leader
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 2 receives command
+Svr 2 log length 53 after append
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 1 receives append entries message
+Svr 0 receives append entries message
+Svr 1 Consitency check failed, return. 
+Svr 0 Consitency check failed, return. 
+Svr 1 receives append entries message
+Svr 0 receives append entries message
+Svr 1 Consitency check failed, return. 
+Svr 0 Consitency check failed, return. 
+Svr 1 receives append entries message
+Svr 0 receives append entries message
+Svr 1 Consitency check failed, return. 
+Svr 0 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 1 receives append entries message
+Svr 0 receives append entries message
+Svr 1 Consitency check failed, return. 
+Svr 0 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 1 receives append entries message
+Svr 0 receives append entries message
+Svr 1 Consitency check failed, return. 
+Svr 0 Consitency check failed, return. 
+Svr 1 receives append entries message
+Svr 0 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 2 receives command
+Svr 2 log length 54 after append
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 1 receives append entries message
+Svr 0 receives append entries message
+Svr 1 Consitency check failed, return. 
+Svr 0 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 receives append entries message
+Svr 1 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 1 Consitency check failed, return. 
+Svr 0 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 1 Consitency check failed, return. 
+Svr 0 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 1 Consitency check failed, return. 
+Svr 0 Consitency check failed, return. 
+Svr 1 receives append entries message
+Svr 0 receives append entries message
+Svr 1 Consitency check failed, return. 
+Svr 0 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 2 receives command
+Svr 2 log length 55 after append
+Svr 1 receives append entries message
+Svr 0 receives append entries message
+Svr 1 Consitency check failed, return. 
+Svr 0 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 1 receives append entries message
+Svr 0 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 1 receives append entries message
+Svr 0 receives append entries message
+Svr 1 Consitency check failed, return. 
+Svr 0 Consitency check failed, return. 
+Svr 1 receives append entries message
+Svr 0 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 receives append entries message
+Svr 1 Consitency check failed, return. 
+Svr 1 receives append entries message
+Svr 0 receives append entries message
+Svr 1 Consitency check failed, return. 
+Svr 0 Consitency check failed, return. 
+Svr 1 receives append entries message
+Svr 0 receives append entries message
+Svr 1 Consitency check failed, return. 
+Svr 0 Consitency check failed, return. 
+Svr 1 receives append entries message
+Svr 0 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 1 receives append entries message
+Svr 0 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 1 Consitency check failed, return. 
+Svr 0 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 1 Consitency check failed, return. 
+Svr 0 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 2 receives command
+Svr 2 log length 56 after append
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 1 receives append entries message
+Svr 0 receives append entries message
+Svr 1 Consitency check failed, return. 
+Svr 0 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 1 receives append entries message
+Svr 0 receives append entries message
+Svr 1 Consitency check failed, return. 
+Svr 0 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 1 receives append entries message
+Svr 0 receives append entries message
+Svr 1 Consitency check failed, return. 
+Svr 0 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 0 Consitency check failed, return. 
+Svr 1 Consitency check failed, return. 
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 1 Apply log 2 into the channel
+Svr 0 Apply log 2 into the channel
+Agree at log entry 52
+Agree at log entry 53
+Agree at log entry 54
+Agree at log entry 55
+Svr 2 Apply log 52 into the channel
+Svr 1 Apply log 3 into the channel
+Svr 0 Apply log 3 into the channel
+Svr 2 Apply log 53 into the channel
+Svr 1 Apply log 4 into the channel
+Svr 0 Apply log 4 into the channel
+Svr 2 Apply log 54 into the channel
+Svr 1 Apply log 5 into the channel
+Svr 0 Apply log 5 into the channel
+Svr 2 Apply log 55 into the channel
+Svr 1 Apply log 6 into the channel
+Svr 0 Apply log 6 into the channel
+Svr 1 Apply log 7 into the channel
+Svr 0 Apply log 7 into the channel
+Svr 1 Apply log 8 into the channel
+Svr 0 Apply log 8 into the channel
+Svr 1 Apply log 9 into the channel
+Svr 0 Apply log 9 into the channel
+Svr 1 Apply log 10 into the channel
+Svr 0 Apply log 10 into the channel
+Svr 1 Apply log 11 into the channel
+Svr 0 Apply log 11 into the channel
+Svr 1 Apply log 12 into the channel
+Svr 0 Apply log 12 into the channel
+Svr 1 Apply log 13 into the channel
+Svr 0 Apply log 13 into the channel
+Svr 1 Apply log 14 into the channel
+Svr 0 Apply log 14 into the channel
+Svr 1 Apply log 15 into the channel
+Svr 0 Apply log 15 into the channel
+Svr 0 receives append entries message
+Svr 1 receives append entries message
+Svr 1 Apply log 16 into the channel
+Svr 0 Apply log 16 into the channel
+Svr 1 Apply log 17 into the channel
+Svr 0 Apply log 17 into the channel
+Svr 1 Apply log 18 into the channel
+Svr 0 Apply log 18 into the channel
+Svr 1 Apply log 19 into the channel
+Svr 0 Apply log 19 into the channel
+Svr 1 Apply log 20 into the channel
+Svr 0 Apply log 20 into the channel
+Svr 1 Apply log 21 into the channel
+Svr 0 Apply log 21 into the channel
+Svr 1 Apply log 22 into the channel
+Svr 0 Apply log 22 into the channel
+Svr 1 Apply log 23 into the channel
+Svr 0 Apply log 23 into the channel
+Svr 1 Apply log 24 into the channel
+Svr 0 Apply log 24 into the channel
+Svr 1 Apply log 25 into the channel
+Svr 0 Apply log 25 into the channel
+Svr 0 Apply log 26 into the channel
+Svr 1 Apply log 26 into the channel
+Svr 1 Apply log 27 into the channel
+Svr 0 Apply log 27 into the channel
+Svr 0 Apply log 28 into the channel
+Svr 1 Apply log 28 into the channel
+Svr 1 receives append entries message
+Svr 0 receives append entries message
+Svr 0 Apply log 29 into the channel
+Svr 1 Apply log 29 into the channel
+Svr 1 Apply log 30 into the channel
+Svr 0 Apply log 30 into the channel
+Svr 1 Apply log 31 into the channel
+Svr 0 Apply log 31 into the channel
+Svr 1 Apply log 32 into the channel
+Svr 0 Apply log 32 into the channel
+Svr 1 Apply log 33 into the channel
+Svr 0 Apply log 33 into the channel
+Svr 1 Apply log 34 into the channel
+Svr 0 Apply log 34 into the channel
+Svr 1 Apply log 35 into the channel
+Svr 0 Apply log 35 into the channel
+Svr 1 Apply log 36 into the channel
+Svr 0 Apply log 36 into the channel
+Svr 1 Apply log 37 into the channel
+Svr 0 Apply log 37 into the channel
+Svr 0 Apply log 38 into the channel
+Svr 1 Apply log 38 into the channel
+Svr 0 Apply log 39 into the channel
+Svr 1 Apply log 39 into the channel
+Svr 0 Apply log 40 into the channel
+Svr 1 Apply log 40 into the channel
+Svr 0 Apply log 41 into the channel
+Svr 1 Apply log 41 into the channel
+Svr 1 receives append entries message
+Svr 0 receives append entries message
+Svr 0 Apply log 42 into the channel
+Svr 1 Apply log 42 into the channel
+Svr 0 Apply log 43 into the channel
+Svr 1 Apply log 43 into the channel
+Svr 0 Apply log 44 into the channel
+Svr 1 Apply log 44 into the channel
+Svr 0 Apply log 45 into the channel
+Svr 1 Apply log 45 into the channel
+Svr 0 Apply log 46 into the channel
+Svr 1 Apply log 46 into the channel
+Svr 0 Apply log 47 into the channel
+Svr 1 Apply log 47 into the channel
+Svr 0 Apply log 48 into the channel
+Svr 1 Apply log 48 into the channel

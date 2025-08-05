@@ -12,12 +12,13 @@ import (
 	"fmt"
 	// "log"
 	"math/rand"
+	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"6.5840/tester1"
+	tester "6.5840/tester1"
 )
 
 // The tester generously allows solutions to complete elections in one second
@@ -122,6 +123,7 @@ func TestManyElections3A(t *testing.T) {
 		// either the current leader should still be alive,
 		// or the remaining four should elect a new one.
 		ts.checkOneLeader()
+		// fmt.Printf("pass one\n")
 
 		ts.g.ConnectOne(i1)
 		ts.g.ConnectOne(i2)
@@ -523,6 +525,10 @@ func TestRejoin3B(t *testing.T) {
 }
 
 func TestBackup3B(t *testing.T) {
+	// clear the log file
+	debugLogFile, _ := os.OpenFile("debug.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	debugLogFile.Close()
+
 	servers := 5
 	ts := makeTest(t, servers, true, false)
 	defer ts.cleanup()
