@@ -184,8 +184,9 @@ type AppendEntriesArgs struct {
 }
 
 type AppendEntriesReply struct {
-	Term    int
-	Success bool
+	Term      int
+	Success   bool
+	NextIndex int
 }
 
 func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply) {
@@ -222,6 +223,15 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		// no logs at that index or the log is not consistent with leader
 		DPrintf("Svr %d Consitency check failed, return. ", rf.me)
 		reply.Success = false
+		if len(rf.log) <= prevLogIndex {
+			reply.NextIndex = len(rf.log)
+		} else {
+			// skip invalid log in a row
+			invalidTerm := rf.log[prevLogIndex].Term
+			for i := prevLogIndex; i >= 0 && rf.log[i].Term == invalidTerm; i-- {
+				reply.NextIndex = i
+			}
+		}
 		return
 	}
 	// prev must be the last committed entry
@@ -455,7 +465,7 @@ func (rf *Raft) replicateLog() {
 					rf.matchIndex[i] = len(rf.log) - 1
 				} else {
 					// decrease the nextIndex
-					nextIndex[i]--
+					nextIndex[i] = reply.NextIndex
 				}
 			}()
 		}
