@@ -10,9 +10,10 @@ package raft
 
 import (
 	"fmt"
+	"os"
+
 	// "log"
 	"math/rand"
-	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -525,10 +526,6 @@ func TestRejoin3B(t *testing.T) {
 }
 
 func TestBackup3B(t *testing.T) {
-	// clear the log file
-	debugLogFile, _ := os.OpenFile("debug.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
-	debugLogFile.Close()
-
 	servers := 5
 	ts := makeTest(t, servers, true, false)
 	defer ts.cleanup()
@@ -817,6 +814,10 @@ func TestPersist13C(t *testing.T) {
 }
 
 func TestPersist23C(t *testing.T) {
+	// clear the log file
+	debugLogFile, _ := os.OpenFile("debug.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	debugLogFile.Close()
+
 	servers := 5
 	ts := makeTest(t, servers, true, false)
 	defer ts.cleanup()
@@ -854,6 +855,7 @@ func TestPersist23C(t *testing.T) {
 		ts.restart((leader1 + 3) % servers)
 		tester.AnnotateRestart([]int{(leader1 + 3) % servers})
 
+		fmt.Printf("group: %d %d %d(must be leader)\n", (leader1+1)%servers, (leader1+2)%servers, (leader1+3)%servers)
 		ts.one(10+index, servers-2, true)
 		index++
 

@@ -9,12 +9,14 @@ package raft
 import (
 	//	"bytes"
 
+	"bytes"
 	"math/rand"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	//	"6.5840/labgob"
+	"6.5840/labgob"
 	"6.5840/labrpc"
 	"6.5840/raftapi"
 	tester "6.5840/tester1"
@@ -87,11 +89,18 @@ func (rf *Raft) persist() {
 	// e.Encode(rf.yyy)
 	// raftstate := w.Bytes()
 	// rf.persister.Save(raftstate, nil)
+	w := new(bytes.Buffer)
+	e := labgob.NewEncoder(w)
+	e.Encode(rf.currentTerm)
+	e.Encode(rf.votedFor)
+	e.Encode(rf.log)
+	raftstate := w.Bytes()
+	rf.persister.Save(raftstate, nil)
 }
 
 // restore previously persisted state.
 func (rf *Raft) readPersist(data []byte) {
-	if data == nil || len(data) < 1 { // bootstrap without any state?
+	if len(data) < 1 { // bootstrap without any state?
 		return
 	}
 	// Your code here (3C).
@@ -107,6 +116,19 @@ func (rf *Raft) readPersist(data []byte) {
 	//   rf.xxx = xxx
 	//   rf.yyy = yyy
 	// }
+	r := bytes.NewBuffer(data)
+	d := labgob.NewDecoder(r)
+	var tmpTerm int
+	var tmpVotedFor int
+	var tmpLog []Log
+	if d.Decode(&tmpTerm) != nil || d.Decode(&tmpVotedFor) != nil || d.Decode(&tmpLog) != nil {
+		DPrintf("Err: Decode persist state failed")
+		return
+	} else {
+		rf.currentTerm = tmpTerm
+		rf.votedFor = tmpVotedFor
+		rf.log = tmpLog
+	}
 }
 
 // how many bytes in Raft's persisted log?
@@ -149,24 +171,38 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 
+	DPrintf("Svr %d receives request vote message", rf.me)
 	term := args.Term
 	lastLogIndex := len(rf.log) - 1
 	lastLogTerm := rf.log[lastLogIndex].Term
+
+	// IMPT: the term must be synchronized (whether reject the vote request or not)
+	// this must before the following up-to-date check
+	// because if I am more up-to-date but my term lags behind, I can not finally become the leader
+	if term > rf.currentTerm {
+		rf.convert2Follower(term)
+	}
+
 	if term < rf.currentTerm || args.LastLogTerm < lastLogTerm ||
 		(args.LastLogTerm == lastLogTerm && args.LastLogIndex < lastLogIndex) {
-		// reject the request
+		// reject the request if I am more up-to-date
+		DPrintf("Svr %d Reject the vote request from svr ?", rf.me)
+		if term < rf.currentTerm {
+			DPrintf("my term is %d, candidate term is %d", term, rf.currentTerm)
+		} else {
+			DPrintf("my last log term is %d, candidate last log term is %d", lastLogTerm, args.LastLogTerm)
+			DPrintf("my log index is %d, candidate log index is %d", lastLogIndex, args.LastLogIndex)
+		}
 		reply.Term = rf.currentTerm
 		reply.VoteGranted = 0
 		return
 	}
 
-	if term > rf.currentTerm {
-		rf.convert2Follower(term)
-	}
 	reply.Term = rf.currentTerm
 	if rf.votedFor == -1 {
 		// can vote for the requesting candidate
 		rf.votedFor = args.CandidateId
+		rf.persist()
 		rf.lastHeartbeat = time.Now()
 		reply.VoteGranted = 1
 	} else {
@@ -212,7 +248,6 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		return
 	}
 	// append entries message
-	DPrintf("Svr %d receives append entries message", rf.me)
 	// consistency check
 	reply.Term = rf.currentTerm
 	prevLogIndex := args.PrevLogIndex
@@ -221,7 +256,6 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 
 	if len(rf.log) <= prevLogIndex || prevLogTerm != rf.log[prevLogIndex].Term {
 		// no logs at that index or the log is not consistent with leader
-		DPrintf("Svr %d Consitency check failed, return. ", rf.me)
 		reply.Success = false
 		if len(rf.log) <= prevLogIndex {
 			reply.NextIndex = len(rf.log)
@@ -237,6 +271,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	// prev must be the last committed entry
 	// fix(2B): must +1 here, should include log entry at prevLogIndex
 	rf.log = append(rf.log[:prevLogIndex+1], args.Entries...)
+	rf.persist()
 	reply.Success = true
 	if leaderCommit > rf.commitIndex {
 		rf.commitIndex = min(leaderCommit, len(rf.log)-1)
@@ -307,6 +342,7 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 	term = rf.currentTerm
 	isLeader = true
 	rf.log = append(rf.log, Log{command, term})
+	rf.persist()
 	DPrintf("Svr %d log length %d after append", rf.me, len(rf.log))
 	return index, term, isLeader
 }
@@ -341,8 +377,8 @@ func (rf *Raft) convert2Follower(term int) {
 	rf.state = Follower
 	// term is up-to-date, the votedFor needs to be clear
 	rf.votedFor = -1
-	// start the timer
-	rf.lastHeartbeat = time.Now()
+	// only heartbeat message can reset the timer, but not here
+	rf.persist()
 }
 
 // should be called when rf is locked
@@ -525,6 +561,7 @@ func (rf *Raft) collectVotes() {
 	rf.mu.Unlock()
 	var voteMutex sync.Mutex
 
+	DPrintf("Svr %d starts collecting votes", rf.me)
 	for i := 0; i < rf.numPeers; i++ {
 		if i == rf.me {
 			continue
@@ -557,6 +594,7 @@ func (rf *Raft) collectVotes() {
 			if reply.VoteGranted == 1 {
 				voteMutex.Lock()
 				voteCount++
+				DPrintf("Svr %d Get Votes from svr %d", me, i)
 				if voteCount*2 > rf.numPeers && !successed {
 					// get the majority of votes
 					successed = true
@@ -570,7 +608,6 @@ func (rf *Raft) collectVotes() {
 
 func (rf *Raft) ticker() {
 	// election timeout [500, 1000) ms
-	// check period [50, 350) ms
 
 	timeout := time.Duration(500+rand.Int63()%500) * time.Millisecond
 	for !rf.killed() {
@@ -582,6 +619,7 @@ func (rf *Raft) ticker() {
 		if (rf.state == Follower || rf.state == Candidate) && now.Sub(rf.lastHeartbeat) > timeout {
 			// convert the server to Candidate state
 			rf.currentTerm++
+			rf.persist()
 			rf.state = Candidate
 			rf.lastHeartbeat = time.Now()
 			timeout = time.Duration(500+rand.Int63()%500) * time.Millisecond
@@ -589,9 +627,8 @@ func (rf *Raft) ticker() {
 			go rf.collectVotes()
 		}
 		rf.mu.Unlock()
-		// pause for a random amount of time between 50 and 350
-		// milliseconds.
-		ms := 50 + (rand.Int63() % 300)
+		// pause for 50 milliseconds.
+		ms := 50
 		time.Sleep(time.Duration(ms) * time.Millisecond)
 	}
 }
