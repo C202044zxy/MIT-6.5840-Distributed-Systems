@@ -997,6 +997,10 @@ func TestUnreliableAgree3C(t *testing.T) {
 }
 
 func TestFigure8Unreliable3C(t *testing.T) {
+	// clear the log file
+	debugLogFile, _ := os.OpenFile("debug.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	debugLogFile.Close()
+
 	servers := 5
 	ts := makeTest(t, servers, false, false)
 	defer ts.cleanup()

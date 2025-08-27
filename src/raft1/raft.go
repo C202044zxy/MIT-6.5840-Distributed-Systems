@@ -51,6 +51,8 @@ type Raft struct {
 	currentTerm int
 	votedFor    int
 	log         []Log
+	offset      int
+	snapshot    []byte
 
 	// Volatile state on all servers
 	state         int
@@ -94,8 +96,9 @@ func (rf *Raft) persist() {
 	e.Encode(rf.currentTerm)
 	e.Encode(rf.votedFor)
 	e.Encode(rf.log)
+	e.Encode(rf.offset)
 	raftstate := w.Bytes()
-	rf.persister.Save(raftstate, nil)
+	rf.persister.Save(raftstate, rf.snapshot)
 }
 
 // restore previously persisted state.
@@ -121,13 +124,16 @@ func (rf *Raft) readPersist(data []byte) {
 	var tmpTerm int
 	var tmpVotedFor int
 	var tmpLog []Log
-	if d.Decode(&tmpTerm) != nil || d.Decode(&tmpVotedFor) != nil || d.Decode(&tmpLog) != nil {
+	var tmpOffset int
+	if d.Decode(&tmpTerm) != nil || d.Decode(&tmpVotedFor) != nil ||
+		d.Decode(&tmpLog) != nil || d.Decode(&tmpOffset) != nil {
 		DPrintf("Err: Decode persist state failed")
 		return
 	} else {
 		rf.currentTerm = tmpTerm
 		rf.votedFor = tmpVotedFor
 		rf.log = tmpLog
+		rf.offset = tmpOffset
 	}
 }
 
@@ -144,7 +150,24 @@ func (rf *Raft) PersistBytes() int {
 // that index. Raft should now trim its log as much as possible.
 func (rf *Raft) Snapshot(index int, snapshot []byte) {
 	// Your code here (3D).
-
+	rf.mu.Lock()
+	defer rf.mu.Unlock()
+	if index <= rf.offset {
+		return
+	}
+	delta := index - rf.offset
+	// remove a prefix of log (len = delta)
+	// full slice expression to release the memory
+	rf.log = rf.log[delta:len(rf.log):len(rf.log)]
+	rf.commitIndex -= delta
+	rf.lastApplied -= delta
+	for i := 0; i < rf.numPeers; i++ {
+		rf.nextIndex[i] -= delta
+		rf.matchIndex[i] -= delta
+	}
+	rf.offset = delta
+	rf.snapshot = snapshot
+	rf.persist()
 }
 
 // example RequestVote RPC arguments structure.
@@ -186,7 +209,7 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	if term < rf.currentTerm || args.LastLogTerm < lastLogTerm ||
 		(args.LastLogTerm == lastLogTerm && args.LastLogIndex < lastLogIndex) {
 		// reject the request if I am more up-to-date
-		DPrintf("Svr %d Reject the vote request from svr ?", rf.me)
+		DPrintf("Svr %d Reject the vote request", rf.me)
 		if term < rf.currentTerm {
 			DPrintf("my term is %d, candidate term is %d", term, rf.currentTerm)
 		} else {
@@ -398,11 +421,13 @@ func (rf *Raft) convert2Leader() {
 
 func (rf *Raft) heartbeat() {
 	// heartbeat period 150 ms
+	rf.mu.Lock()
+	term := rf.currentTerm
+	me := rf.me
+	rf.mu.Unlock()
 	for !rf.killed() {
 		// check that state hasn't changed
 		rf.mu.Lock()
-		term := rf.currentTerm
-		me := rf.me
 		if rf.state != Leader || rf.currentTerm != term {
 			rf.mu.Unlock()
 			return
@@ -525,15 +550,26 @@ func (rf *Raft) commitLog() {
 		if rf.commitIndex+1 < len(rf.log) {
 			for N := rf.commitIndex + 1; N < len(rf.log); N++ {
 				cnt := 1
+				cnt2 := 1
 				for i := 0; i < rf.numPeers; i++ {
 					if i == rf.me {
 						continue
 					}
 					// IMPORTANT: rf.log[N].term = term
 					if rf.matchIndex[i] >= N && rf.log[N].Term == term {
+						DPrintf("Svr %d commits first %d log, leader = %d, term = %d", i, N, rf.me, term)
 						cnt++
 					}
+					if rf.matchIndex[i] >= N {
+						cnt2++
+					}
 					if cnt*2 > rf.numPeers {
+						rf.commitIndex = N
+						DPrintf("Agree at log entry %d", N)
+						break
+					}
+					if cnt2 == rf.numPeers {
+						// all servers has that entry, agree
 						rf.commitIndex = N
 						DPrintf("Agree at log entry %d", N)
 						break
@@ -622,6 +658,7 @@ func (rf *Raft) ticker() {
 			rf.persist()
 			rf.state = Candidate
 			rf.lastHeartbeat = time.Now()
+			rf.votedFor = rf.me
 			timeout = time.Duration(500+rand.Int63()%500) * time.Millisecond
 			// start a new go routine to collect votes
 			go rf.collectVotes()
@@ -640,7 +677,8 @@ func (rf *Raft) applyLog() {
 
 		rf.mu.Lock()
 		if rf.commitIndex > rf.lastApplied {
-			DPrintf("Svr %d Apply log %d into the channel", rf.me, rf.lastApplied+1)
+			DPrintf("Svr %d Apply log %d = (%d, %d) into the channel", rf.me, rf.lastApplied+1,
+				rf.log[rf.lastApplied+1].Command, rf.log[rf.lastApplied+1].Term)
 			msg := raftapi.ApplyMsg{
 				CommandValid: true,
 				Command:      rf.log[rf.lastApplied+1].Command,
@@ -687,8 +725,13 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	rf.log[0].Term = 0
 	rf.applyCh = applyCh
 
+	// 3D
+	rf.offset = 0
+	rf.snapshot = nil
+
 	// initialize from state persisted before a crash
 	rf.readPersist(persister.ReadRaftState())
+	rf.snapshot = persister.ReadSnapshot()
 
 	// start ticker goroutine to start elections
 	go rf.ticker()
