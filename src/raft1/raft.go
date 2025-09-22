@@ -139,13 +139,12 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 	if rf.killed() || rf.state != Leader {
 		return index, term, isLeader
 	}
-	DPrintf("Svr %d receives command", rf.me)
 	index = len(rf.log) + rf.offset
+	DPrintf("Svr %d receives command, index = %d", rf.me, index)
 	term = rf.currentTerm
 	isLeader = true
 	rf.log = append(rf.log, Log{command, term})
 	rf.persist()
-	DPrintf("Svr %d log length %d after append", rf.me, len(rf.log))
 	return index, term, isLeader
 }
 
@@ -274,7 +273,7 @@ func (rf *Raft) applyLog() {
 			DPrintf("Svr %d Apply log %d into the channel", rf.me, rf.lastApplied+1)
 			msg := raftapi.ApplyMsg{
 				CommandValid: true,
-				Command:      rf.log[rf.lastApplied+1].Command,
+				Command:      rf.log[rf.lastApplied+1-rf.offset].Command,
 				CommandIndex: rf.lastApplied + 1,
 			}
 			rf.lastApplied++
@@ -321,6 +320,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	// 3D
 	rf.snapshot = nil
 	rf.offset = 0
+	rf.lastIncludedTerm = 0
 
 	// initialize from state persisted before a crash
 	rf.readPersist(persister.ReadRaftState())

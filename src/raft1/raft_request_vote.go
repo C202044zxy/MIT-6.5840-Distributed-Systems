@@ -13,7 +13,6 @@ type RequestVoteArgs struct {
 	CandidateId  int
 	LastLogIndex int
 	LastLogTerm  int
-	offset       int
 }
 
 // example RequestVote RPC reply structure.
@@ -43,14 +42,14 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	}
 
 	if term < rf.currentTerm || args.LastLogTerm < lastLogTerm ||
-		(args.LastLogTerm == lastLogTerm && args.LastLogIndex+args.offset < lastLogIndex+rf.offset) {
+		(args.LastLogTerm == lastLogTerm && args.LastLogIndex < lastLogIndex+rf.offset) {
 		// reject the request if I am more up-to-date
 		DPrintf("Svr %d Reject the vote request from svr ?", rf.me)
 		if term < rf.currentTerm {
 			DPrintf("my term is %d, candidate term is %d", term, rf.currentTerm)
 		} else {
 			DPrintf("my last log term is %d, candidate last log term is %d", lastLogTerm, args.LastLogTerm)
-			DPrintf("my log index is %d, candidate log index is %d", lastLogIndex+rf.offset, args.LastLogIndex+args.offset)
+			DPrintf("my log index is %d, candidate log index is %d", lastLogIndex+rf.offset, args.LastLogIndex)
 		}
 		reply.Term = rf.currentTerm
 		reply.VoteGranted = 0
@@ -78,9 +77,11 @@ func (rf *Raft) collectVotes() {
 	successed := false
 	term := rf.currentTerm
 	me := rf.me
-	lastLogIndex := len(rf.log) - 1
-	lastLogTerm := rf.log[lastLogIndex].Term
-	offset := rf.offset
+	lastLogIndex := rf.offset - 1 + len(rf.log)
+	lastLogTerm := rf.lastIncludedTerm
+	if len(rf.log) > 0 {
+		lastLogTerm = rf.log[len(rf.log)-1].Term
+	}
 	rf.mu.Unlock()
 	var voteMutex sync.Mutex
 
@@ -95,7 +96,6 @@ func (rf *Raft) collectVotes() {
 				CandidateId:  me,
 				LastLogIndex: lastLogIndex,
 				LastLogTerm:  lastLogTerm,
-				offset:       offset,
 			}
 			reply := RequestVoteReply{}
 			ok := rf.sendRequestVote(i, &args, &reply)

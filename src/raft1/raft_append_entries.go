@@ -1,6 +1,9 @@
 package raft
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type AppendEntriesArgs struct {
 	Term         int
@@ -9,7 +12,7 @@ type AppendEntriesArgs struct {
 	PrevLogTerm  int
 	Entries      []Log
 	LeaderCommit int
-	offset       int
+	Offset       int
 }
 
 type AppendEntriesReply struct {
@@ -46,30 +49,32 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	prevLogIndex := args.PrevLogIndex
 	prevLogTerm := args.PrevLogTerm
 	leaderCommit := args.LeaderCommit
-	offset := args.offset
+	offset := args.Offset
 
-	if rf.offset+len(rf.log) <= prevLogIndex+offset ||
-		(prevLogIndex+offset-rf.offset >= 0 && prevLogTerm != rf.log[prevLogIndex+offset-rf.offset].Term) {
+	if rf.offset+len(rf.log) <= prevLogIndex ||
+		(prevLogIndex-rf.offset >= 0 && prevLogTerm != rf.log[prevLogIndex-rf.offset].Term) {
 		// no logs at that index or the log is not consistent with leader
 		reply.Success = false
-		if rf.offset+len(rf.log) <= prevLogIndex+offset {
-			reply.NextIndex = max(0, len(rf.log)+rf.offset-offset)
+		if rf.offset+len(rf.log) <= prevLogIndex {
+			reply.NextIndex = len(rf.log) + rf.offset
 		} else {
 			// skip invalid log in a row
-			invalidTerm := rf.log[prevLogIndex+offset-rf.offset].Term
-			for i := prevLogIndex; i >= 0 && rf.log[i].Term == invalidTerm; i-- {
-				reply.NextIndex = max(0, i+rf.offset-offset)
+			invalidTerm := rf.log[prevLogIndex-rf.offset].Term
+			for i := prevLogIndex - rf.offset; i >= 0 && rf.log[i].Term == invalidTerm; i-- {
+				reply.NextIndex = i + rf.offset
 			}
 		}
+		reply.NextIndex = max(offset, reply.NextIndex)
 		return
 	}
 	// prev must be the last committed entry
 	// fix(2B): must +1 here, should include log entry at prevLogIndex
-	if prevLogIndex+1+offset-rf.offset <= 0 {
-		rf.log = make([]Log, 0)
-		rf.log = append(rf.log, args.Entries...)
+	if prevLogIndex+1-rf.offset <= 0 {
+		// rf.log = make([]Log, 0)
+		// rf.log = append(rf.log, args.Entries...)
+		panic("assertion failed. prevLogIndex+1-rf.offset <= 0 happens")
 	} else {
-		rf.log = append(rf.log[:prevLogIndex+1+offset-rf.offset], args.Entries...)
+		rf.log = append(rf.log[:prevLogIndex+1-rf.offset], args.Entries...)
 	}
 	rf.persist()
 	reply.Success = true
@@ -80,15 +85,17 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 
 func (rf *Raft) heartbeat() {
 	// heartbeat period 150 ms
+	rf.mu.Lock()
+	term := rf.currentTerm
+	rf.mu.Unlock()
 	for !rf.killed() {
 		// check that state hasn't changed
 		rf.mu.Lock()
-		term := rf.currentTerm
-		me := rf.me
 		if rf.state != Leader || rf.currentTerm != term {
 			rf.mu.Unlock()
 			return
 		}
+		me := rf.me
 		rf.mu.Unlock()
 
 		for i := 0; i < rf.numPeers; i++ {
@@ -130,37 +137,46 @@ func (rf *Raft) replicateLog() {
 	term := rf.currentTerm
 	rf.mu.Unlock()
 	for !rf.killed() {
-		// check that state hasn't changed
 		rf.mu.Lock()
-		me := rf.me
-		// may be optimized to the least index of nextIndex
-		log := rf.log
-		nextIndex := rf.nextIndex
-		commitIndex := rf.commitIndex
-		offset := rf.offset
+		// check that state hasn't changed
 		if rf.state != Leader || rf.currentTerm != term {
 			rf.mu.Unlock()
 			return
 		}
+		// lab(3D): only solve index >= offset. so max is applied
+		me := rf.me
+		log := rf.log
+		nextIndex := rf.nextIndex
+		commitIndex := rf.commitIndex
+		offset := rf.offset
+		lastIncludedTerm := rf.lastIncludedTerm
+		for i := 0; i < rf.numPeers; i++ {
+			rf.nextIndex[i] = max(rf.nextIndex[i], rf.offset)
+			rf.matchIndex[i] = max(rf.matchIndex[i], rf.offset-1)
+		}
 		rf.mu.Unlock()
 
 		for i := 0; i < rf.numPeers; i++ {
-			if i == rf.me {
+			if i == rf.me || len(log) == 0 {
 				continue
 			}
 			// send request even if no new log to append
 			// since this RPC does distribute commit information
 			go func() {
-				prev := nextIndex[i] - 1 - offset
-				// TODO: should I append all logs at one time?
+				prev := nextIndex[i] - 1
+				prevLogTerm := lastIncludedTerm
+				if prev >= offset {
+					prevLogTerm = log[prev-offset].Term
+				}
+				fmt.Printf("NextIndex = %d, offset = %d\n", nextIndex[i], offset)
 				args := AppendEntriesArgs{
 					Term:         term,
 					LeaderId:     me,
 					PrevLogIndex: prev,
-					PrevLogTerm:  log[prev].Term,
+					PrevLogTerm:  prevLogTerm,
 					Entries:      log[nextIndex[i]-offset:],
 					LeaderCommit: commitIndex,
-					offset:       offset,
+					Offset:       offset,
 				}
 				reply := AppendEntriesReply{}
 				ok := rf.sendAppendEntries(i, &args, &reply)

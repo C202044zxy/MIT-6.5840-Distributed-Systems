@@ -1,6 +1,10 @@
 package raft
 
-import "6.5840/raftapi"
+import (
+	"time"
+
+	"6.5840/raftapi"
+)
 
 type InstallSnapshotArgs struct {
 	Term              int
@@ -13,6 +17,22 @@ type InstallSnapshotReply struct {
 	Term int
 }
 
+// Discard old log entries in a way that allows
+// the Go garbage collector to free and re-use the memory.
+// This requires that there be no reachable references (pointers)
+// to the discarded log entries.
+func TrimFront[T any](s []T, offset int) []T {
+	if offset <= 0 {
+		return s
+	}
+	if offset >= len(s) {
+		return nil
+	}
+	newSlice := make([]T, len(s)-offset)
+	copy(newSlice, s[offset:])
+	return newSlice
+}
+
 // the service says it has created a snapshot that has
 // all info up to and including index. this means the
 // service no longer needs the log through (and including)
@@ -22,15 +42,21 @@ func (rf *Raft) Snapshot(index int, snapshot []byte) {
 	// TODO(lockzhou): will the snapshot contains the very first item?
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
+	if index+1 <= rf.offset {
+		// not fast-forward
+		return
+	}
 	rf.snapshot = snapshot
 	if rf.snapshot == nil {
 		rf.offset = 0
+		rf.lastIncludedTerm = 0
 		return
 	}
-	if index > rf.offset {
+	if index+1 > rf.offset {
 		// trim the log
-		rf.log = rf.log[index-rf.offset:]
-		rf.offset = index
+		rf.lastIncludedTerm = rf.log[index-rf.offset].Term
+		rf.log = TrimFront(rf.log, index+1-rf.offset)
+		rf.offset = index + 1
 	}
 	rf.persist()
 }
@@ -60,7 +86,7 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 		// match failed. discard the entire log
 		rf.log = make([]Log, 0)
 	} else {
-		rf.log = rf.log[lastIncludedIndex+1-rf.offset:]
+		rf.log = TrimFront(rf.log, lastIncludedIndex+1-rf.offset)
 	}
 	rf.offset = lastIncludedIndex + 1
 	rf.snapshot = data
@@ -75,11 +101,44 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 }
 
 func (rf *Raft) sendSnapshot() {
-	// sendSnapshot
+	// sendSnapshot period 150 ms
+	rf.mu.Lock()
+	term := rf.currentTerm
+	rf.mu.Unlock()
 	for !rf.killed() {
 		rf.mu.Lock()
-		term := rf.currentTerm
+		if rf.state != Leader || rf.currentTerm != term || rf.offset == 0 {
+			rf.mu.Unlock()
+			return
+		}
 		snapshot := rf.snapshot
 		offset := rf.offset
+		lastIncludedTerm := rf.lastIncludedTerm
+		rf.mu.Unlock()
+		for i := 0; i < rf.numPeers; i++ {
+			if i == rf.me {
+				continue
+			}
+			go func() {
+				args := InstallSnapshotArgs{
+					Term:              term,
+					LastIncludedIndex: offset - 1,
+					LastIncludedTerm:  lastIncludedTerm,
+					Data:              snapshot,
+				}
+				reply := InstallSnapshotReply{}
+				ok := rf.sendInstallSnapshot(i, &args, &reply)
+				if !ok {
+					return
+				}
+				rf.mu.Lock()
+				defer rf.mu.Unlock()
+				if reply.Term > rf.currentTerm {
+					rf.convert2Follower(reply.Term)
+					return
+				}
+			}()
+		}
+		time.Sleep(time.Duration(150) * time.Millisecond)
 	}
 }

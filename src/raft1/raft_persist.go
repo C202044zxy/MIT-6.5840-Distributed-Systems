@@ -72,6 +72,8 @@ func (rf *Raft) readPersist(data []byte) {
 		rf.snapshot = tmpSnapshot
 		rf.offset = tmpOffset
 		rf.lastIncludedTerm = tmpLastIncludedTerm
+		// set some volatile state
+
 	}
 }
 

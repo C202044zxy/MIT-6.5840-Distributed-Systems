@@ -1,0 +1,118 @@
+Svr 1 starts collecting votes
+Svr 2 receives request vote message
+Svr 0 receives request vote message
+Svr 1 Get Votes from svr 2
+Svr 1 becomes leader
+Svr 1 receives command, index = 1
+Agree at log entry 1
+Svr 1 Apply log 1 into the channel
+Svr 2 Apply log 1 into the channel
+Svr 0 Apply log 1 into the channel
+Svr 1 receives command, index = 2
+Svr 1 receives command, index = 3
+Svr 1 receives command, index = 4
+Svr 1 receives command, index = 5
+Svr 1 receives command, index = 6
+Svr 1 receives command, index = 7
+Svr 1 receives command, index = 8
+Svr 1 receives command, index = 9
+Svr 1 receives command, index = 10
+Svr 1 receives command, index = 11
+Svr 1 receives command, index = 12
+Svr 1 receives command, index = 13
+Svr 1 receives command, index = 14
+Svr 1 receives command, index = 15
+Agree at log entry 2
+Agree at log entry 3
+Agree at log entry 4
+Agree at log entry 5
+Agree at log entry 6
+Agree at log entry 7
+Agree at log entry 8
+Agree at log entry 9
+Agree at log entry 10
+Agree at log entry 11
+Agree at log entry 12
+Agree at log entry 13
+Agree at log entry 14
+Agree at log entry 15
+Svr 1 Apply log 2 into the channel
+Svr 1 Apply log 3 into the channel
+Svr 1 Apply log 4 into the channel
+Svr 1 Apply log 5 into the channel
+Svr 1 Apply log 6 into the channel
+Svr 1 Apply log 7 into the channel
+Svr 1 Apply log 8 into the channel
+Svr 1 Apply log 9 into the channel
+Svr 1 Apply log 10 into the channel
+Svr 1 Apply log 11 into the channel
+Svr 1 Apply log 12 into the channel
+Svr 1 Apply log 13 into the channel
+Svr 1 Apply log 14 into the channel
+Svr 1 Apply log 15 into the channel
+Svr 2 Apply log 2 into the channel
+Svr 0 Apply log 2 into the channel
+Svr 0 Apply log 3 into the channel
+Svr 2 Apply log 3 into the channel
+Svr 2 Apply log 4 into the channel
+Svr 0 Apply log 4 into the channel
+Svr 0 Apply log 5 into the channel
+Svr 2 Apply log 5 into the channel
+Svr 2 Apply log 6 into the channel
+Svr 0 Apply log 6 into the channel
+Svr 2 Apply log 7 into the channel
+Svr 0 Apply log 7 into the channel
+Svr 2 Apply log 8 into the channel
+Svr 0 Apply log 8 into the channel
+Svr 0 Apply log 9 into the channel
+Svr 2 Apply log 9 into the channel
+Svr 0 Apply log 10 into the channel
+Svr 2 Apply log 10 into the channel
+Svr 0 Apply log 11 into the channel
+Svr 2 Apply log 11 into the channel
+Svr 2 Apply log 12 into the channel
+Svr 0 Apply log 12 into the channel
+Svr 0 Apply log 13 into the channel
+Svr 2 Apply log 13 into the channel
+Svr 2 Apply log 14 into the channel
+Svr 0 Apply log 14 into the channel
+Svr 2 Apply log 15 into the channel
+Svr 0 Apply log 15 into the channel
+Svr 1 receives command, index = 16
+Agree at log entry 16
+Svr 1 Apply log 16 into the channel
+Svr 0 Apply log 16 into the channel
+Svr 2 Apply log 16 into the channel
+Svr 1 receives command, index = 17
+Svr 1 receives command, index = 18
+Svr 1 receives command, index = 19
+Svr 1 receives command, index = 20
+Svr 1 receives command, index = 21
+Svr 1 receives command, index = 22
+Svr 1 receives command, index = 23
+Agree at log entry 17
+Agree at log entry 18
+Agree at log entry 19
+Agree at log entry 20
+Agree at log entry 21
+Agree at log entry 22
+Agree at log entry 23
+Svr 1 Apply log 17 into the channel
+Svr 1 Apply log 18 into the channel
+Svr 1 Apply log 19 into the channel
+Svr 1 Apply log 20 into the channel
+Svr 1 Apply log 21 into the channel
+Svr 1 Apply log 22 into the channel
+Svr 1 Apply log 23 into the channel
+Svr 1 receives command, index = 24
+Agree at log entry 24
+Svr 1 Apply log 24 into the channel
+Svr 1 receives command, index = 25
+Agree at log entry 25
+Svr 1 Apply log 25 into the channel
+Svr 1 receives command, index = 26
+Agree at log entry 26
+Svr 1 Apply log 26 into the channel
+Svr 1 receives command, index = 27
+Agree at log entry 27
+Svr 1 Apply log 27 into the channel
