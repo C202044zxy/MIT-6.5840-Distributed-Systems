@@ -70,9 +70,8 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	// prev must be the last committed entry
 	// fix(2B): must +1 here, should include log entry at prevLogIndex
 	if prevLogIndex+1-rf.offset <= 0 {
-		// rf.log = make([]Log, 0)
-		// rf.log = append(rf.log, args.Entries...)
-		panic("assertion failed. prevLogIndex+1-rf.offset <= 0 happens")
+		rf.log = make([]Log, 0)
+		rf.log = append(rf.log, args.Entries...)
 	} else {
 		rf.log = append(rf.log[:prevLogIndex+1-rf.offset], args.Entries...)
 	}
@@ -152,7 +151,6 @@ func (rf *Raft) replicateLog() {
 		lastIncludedTerm := rf.lastIncludedTerm
 		for i := 0; i < rf.numPeers; i++ {
 			rf.nextIndex[i] = max(rf.nextIndex[i], rf.offset)
-			rf.matchIndex[i] = max(rf.matchIndex[i], rf.offset-1)
 		}
 		rf.mu.Unlock()
 

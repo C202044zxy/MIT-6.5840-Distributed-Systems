@@ -190,7 +190,7 @@ func (rf *Raft) convert2Leader() {
 	rf.matchIndex = make([]int, rf.numPeers)
 	for i := 0; i < rf.numPeers; i++ {
 		rf.nextIndex[i] = len(rf.log) + rf.offset
-		rf.matchIndex[i] = rf.offset
+		rf.matchIndex[i] = -1 // match nothing here
 	}
 	go rf.heartbeat()
 	go rf.replicateLog()

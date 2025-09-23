@@ -15,6 +15,7 @@ type InstallSnapshotArgs struct {
 
 type InstallSnapshotReply struct {
 	Term int
+	Succ bool
 }
 
 // Discard old log entries in a way that allows
@@ -47,6 +48,7 @@ func (rf *Raft) Snapshot(index int, snapshot []byte) {
 		return
 	}
 	rf.snapshot = snapshot
+	DPrintf("svr %d receives snapshot message", rf.me)
 	if rf.snapshot == nil {
 		rf.offset = 0
 		rf.lastIncludedTerm = 0
@@ -58,6 +60,7 @@ func (rf *Raft) Snapshot(index int, snapshot []byte) {
 		rf.log = TrimFront(rf.log, index+1-rf.offset)
 		rf.offset = index + 1
 	}
+	DPrintf("Svr %d snapshot succ, lastIncludedIndex = %d", rf.me, rf.offset)
 	rf.persist()
 }
 
@@ -68,6 +71,7 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	lastIncludedIndex := args.LastIncludedIndex
 	lastIncludedTerm := args.LastIncludedTerm
 	data := args.Data
+	reply.Succ = false
 	if term < rf.currentTerm {
 		// reject immediately
 		reply.Term = rf.currentTerm
@@ -96,8 +100,12 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 		SnapshotTerm:  lastIncludedTerm,
 		SnapshotIndex: lastIncludedIndex,
 	}
+	rf.lastApplied = max(rf.lastApplied, lastIncludedIndex)
+	rf.commitIndex = max(rf.commitIndex, lastIncludedIndex)
 	rf.applyCh <- msg
 	rf.persist()
+	reply.Succ = true
+	DPrintf("Install snapshot succ, lastIncludedIndex = %d", lastIncludedIndex)
 }
 
 func (rf *Raft) sendSnapshot() {
@@ -107,9 +115,15 @@ func (rf *Raft) sendSnapshot() {
 	rf.mu.Unlock()
 	for !rf.killed() {
 		rf.mu.Lock()
-		if rf.state != Leader || rf.currentTerm != term || rf.offset == 0 {
+		if rf.state != Leader || rf.currentTerm != term {
 			rf.mu.Unlock()
 			return
+		}
+		if rf.offset == 0 {
+			// stop snapshot synchronization temporarily
+			rf.mu.Unlock()
+			time.Sleep(time.Duration(150) * time.Millisecond)
+			continue
 		}
 		snapshot := rf.snapshot
 		offset := rf.offset
@@ -119,6 +133,7 @@ func (rf *Raft) sendSnapshot() {
 			if i == rf.me {
 				continue
 			}
+			DPrintf("master %d sends InstallSnapshot to svr %d", rf.me, i)
 			go func() {
 				args := InstallSnapshotArgs{
 					Term:              term,
@@ -136,6 +151,9 @@ func (rf *Raft) sendSnapshot() {
 				if reply.Term > rf.currentTerm {
 					rf.convert2Follower(reply.Term)
 					return
+				}
+				if reply.Succ {
+					rf.matchIndex[i] = max(rf.matchIndex[i], offset-1)
 				}
 			}()
 		}

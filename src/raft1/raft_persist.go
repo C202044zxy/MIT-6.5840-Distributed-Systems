@@ -73,7 +73,8 @@ func (rf *Raft) readPersist(data []byte) {
 		rf.offset = tmpOffset
 		rf.lastIncludedTerm = tmpLastIncludedTerm
 		// set some volatile state
-
+		rf.lastApplied = max(0, rf.offset-1)
+		rf.commitIndex = max(0, rf.offset-1)
 	}
 }
 
