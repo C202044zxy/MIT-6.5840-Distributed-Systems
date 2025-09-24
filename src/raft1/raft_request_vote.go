@@ -31,8 +31,11 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 
 	DPrintf("Svr %d receives request vote message", rf.me)
 	term := args.Term
-	lastLogIndex := len(rf.log) - 1
-	lastLogTerm := rf.log[lastLogIndex].Term
+	lastLogIndex := len(rf.log) - 1 + rf.offset
+	lastLogTerm := rf.lastIncludedTerm
+	if len(rf.log) > 0 {
+		lastLogTerm = rf.log[len(rf.log)-1].Term
+	}
 
 	// IMPT: the term must be synchronized (whether reject the vote request or not)
 	// this must before the following up-to-date check
@@ -42,14 +45,14 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	}
 
 	if term < rf.currentTerm || args.LastLogTerm < lastLogTerm ||
-		(args.LastLogTerm == lastLogTerm && args.LastLogIndex < lastLogIndex+rf.offset) {
+		(args.LastLogTerm == lastLogTerm && args.LastLogIndex < lastLogIndex) {
 		// reject the request if I am more up-to-date
 		DPrintf("Svr %d Reject the vote request from svr ?", rf.me)
 		if term < rf.currentTerm {
 			DPrintf("my term is %d, candidate term is %d", term, rf.currentTerm)
 		} else {
 			DPrintf("my last log term is %d, candidate last log term is %d", lastLogTerm, args.LastLogTerm)
-			DPrintf("my log index is %d, candidate log index is %d", lastLogIndex+rf.offset, args.LastLogIndex)
+			DPrintf("my log index is %d, candidate log index is %d", lastLogIndex, args.LastLogIndex)
 		}
 		reply.Term = rf.currentTerm
 		reply.VoteGranted = 0

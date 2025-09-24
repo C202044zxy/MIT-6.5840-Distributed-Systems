@@ -219,7 +219,7 @@ func (rf *Raft) commitLog() {
 						continue
 					}
 					// IMPORTANT: rf.log[N].term = term
-					if rf.matchIndex[i]+rf.offset >= N && rf.log[N-rf.offset].Term == term {
+					if rf.matchIndex[i] >= N && rf.log[N-rf.offset].Term == term {
 						cnt++
 					}
 					if cnt*2 > rf.numPeers {

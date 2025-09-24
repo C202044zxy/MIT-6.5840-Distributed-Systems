@@ -60,7 +60,7 @@ func (rf *Raft) Snapshot(index int, snapshot []byte) {
 		rf.log = TrimFront(rf.log, index+1-rf.offset)
 		rf.offset = index + 1
 	}
-	DPrintf("Svr %d snapshot succ, lastIncludedIndex = %d", rf.me, rf.offset)
+	DPrintf("Svr %d snapshot succ, lastIncludedIndex = %d", rf.me, rf.offset-1)
 	rf.persist()
 }
 
@@ -93,6 +93,7 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 		rf.log = TrimFront(rf.log, lastIncludedIndex+1-rf.offset)
 	}
 	rf.offset = lastIncludedIndex + 1
+	rf.lastIncludedTerm = lastIncludedTerm
 	rf.snapshot = data
 	msg := raftapi.ApplyMsg{
 		SnapshotValid: true,
@@ -105,7 +106,7 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	rf.applyCh <- msg
 	rf.persist()
 	reply.Succ = true
-	DPrintf("Install snapshot succ, lastIncludedIndex = %d", lastIncludedIndex)
+	DPrintf("Svr %d Install snapshot succ, lastIncludedIndex = %d", rf.me, lastIncludedIndex)
 }
 
 func (rf *Raft) sendSnapshot() {

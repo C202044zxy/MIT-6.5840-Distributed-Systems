@@ -27,11 +27,10 @@ func (rf *Raft) persist() {
 	e.Encode(rf.currentTerm)
 	e.Encode(rf.votedFor)
 	e.Encode(rf.log)
-	e.Encode(rf.snapshot)
 	e.Encode(rf.offset)
 	e.Encode(rf.lastIncludedTerm)
 	raftstate := w.Bytes()
-	rf.persister.Save(raftstate, nil)
+	rf.persister.Save(raftstate, rf.snapshot)
 }
 
 // restore previously persisted state.
@@ -57,25 +56,24 @@ func (rf *Raft) readPersist(data []byte) {
 	var tmpTerm int
 	var tmpVotedFor int
 	var tmpLog []Log
-	var tmpSnapshot []byte
 	var tmpOffset int
 	var tmpLastIncludedTerm int
 	if d.Decode(&tmpTerm) != nil || d.Decode(&tmpVotedFor) != nil ||
-		d.Decode(&tmpLog) != nil || d.Decode(&tmpSnapshot) != nil ||
-		d.Decode(&tmpOffset) != nil || d.Decode(&tmpLastIncludedTerm) != nil {
+		d.Decode(&tmpLog) != nil || d.Decode(&tmpOffset) != nil ||
+		d.Decode(&tmpLastIncludedTerm) != nil {
 		DPrintf("Err: Decode persist state failed")
 		return
 	} else {
 		rf.currentTerm = tmpTerm
 		rf.votedFor = tmpVotedFor
 		rf.log = tmpLog
-		rf.snapshot = tmpSnapshot
 		rf.offset = tmpOffset
 		rf.lastIncludedTerm = tmpLastIncludedTerm
 		// set some volatile state
 		rf.lastApplied = max(0, rf.offset-1)
 		rf.commitIndex = max(0, rf.offset-1)
 	}
+	rf.snapshot = rf.persister.ReadSnapshot()
 }
 
 // how many bytes in Raft's persisted log?

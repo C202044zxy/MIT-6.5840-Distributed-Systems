@@ -1232,6 +1232,11 @@ const (
 )
 
 func snapcommon(t *testing.T, name string, disconnect bool, reliable bool, crash bool) {
+	err := os.Truncate("debug.log", 0)
+	if err != nil {
+		panic(err)
+	}
+
 	iters := 30
 	servers := 3
 	ts := makeTest(t, servers, reliable, true)
@@ -1303,10 +1308,6 @@ func snapcommon(t *testing.T, name string, disconnect bool, reliable bool, crash
 }
 
 func TestSnapshotBasic3D(t *testing.T) {
-	err := os.Truncate("debug.log", 0)
-	if err != nil {
-		panic(err)
-	}
 	snapcommon(t, "Test (3D): snapshots basic", false, true, false)
 }
 

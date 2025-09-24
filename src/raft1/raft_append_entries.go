@@ -1,7 +1,6 @@
 package raft
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -166,7 +165,6 @@ func (rf *Raft) replicateLog() {
 				if prev >= offset {
 					prevLogTerm = log[prev-offset].Term
 				}
-				fmt.Printf("NextIndex = %d, offset = %d\n", nextIndex[i], offset)
 				args := AppendEntriesArgs{
 					Term:         term,
 					LeaderId:     me,
