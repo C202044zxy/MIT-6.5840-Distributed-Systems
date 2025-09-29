@@ -92,3 +92,23 @@ If a leader crashes before committing an entry, future leaders will attempt to f
 <img src = "picture\6.png" width = 500>
 
 To eliminate the kind of problems, Raft never commits log entries from previous terms by counting replicas. Only log entries from the leader's current term are committed by counting replicas. Once an entry from the current is committed in this way, then all prior entries are committed indirectly because of the Log Matching Property. 
+
+## 5. Log Compaction
+
+Raft's log grows during normal operation to incorporate more client requests, but in pratical system, it can not grow out of bound. Logs need to be compacted. 
+
+Snapshotting is the simplest approach to compaction. In snapshotting, the entire current state is written to a snapshot on stable storage, then the entire log up to that point is discarded. 
+
+<img src = "picture\7.png" width = 500>
+
+Figure 12 shows the basic idea of snapshotting in Raft. Each server takes snapshots independently, covering just the committed entries in its log. Most of the work consists of the state machine writing its current state to the snapshot. Raft also includes a small amount of metadata in the snapshot: the *last included index* is the index of the last log entry that the snapshot replaces, and the *last included term* of this entry. These are preserved to support the AppendEntries consistency check for the first log entry following the snapshot. 
+
+Although servers normally take snapshots independently, the leader must occasionally send snapshots to the follower that lags behind. This happens when the leader has already discarded the next log entry that needs to be sent to a follower. 
+
+<img src = "picture\8.png" width = 500>
+
+The leader uses a new RPC called InstallSnapshot to send snapshot to followers that are too far behind. If the snapshot contains new information not already in the recipient's log, the follower discards its entire log. If instead the follower receives a snapshot that describes a prefix of its log, the log entries covered by snapshot are deleted but entires following the snapshot are retained. 
+
+There are two more issues that impact snapshotting performance. First, server must decide when to snapshot. If a server snapshots too often, it wastes disk bindwidth. If it snapshots too infrequently, it risks exhausting its storage capacity, and it increases the time to replay the logs during restarts. 
+
+The second performance issue is that writting a snapshot can take a significant amount of time, and we do not want this to delay normal operations. The solution is to use copy-on-write techniques so that new updates can be accepted without impacting the snapshot being written. 
