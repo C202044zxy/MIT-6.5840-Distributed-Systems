@@ -1,25 +1,28 @@
 package rsm
 
 import (
+	"fmt"
+	"math/rand"
 	"sync"
+	"time"
 
 	"6.5840/kvsrv1/rpc"
 	"6.5840/labrpc"
-	"6.5840/raft1"
+	raft "6.5840/raft1"
 	"6.5840/raftapi"
-	"6.5840/tester1"
-
+	tester "6.5840/tester1"
 )
 
 var useRaftStateMachine bool // to plug in another raft besided raft1
-
 
 type Op struct {
 	// Your definitions here.
 	// Field names must start with capital letters,
 	// otherwise RPC will break.
+	Me  int
+	Id  int
+	Req any
 }
-
 
 // A server (i.e., ../server.go) that wants to replicate itself calls
 // MakeRSM and must implement the StateMachine interface.  This
@@ -41,6 +44,10 @@ type RSM struct {
 	maxraftstate int // snapshot if log grows this big
 	sm           StateMachine
 	// Your definitions here.
+	idCounter int64
+	registry  sync.Map
+	index2Id  sync.Map
+	stopCh    chan struct{}
 }
 
 // servers[] contains the ports of the set of
@@ -63,11 +70,13 @@ func MakeRSM(servers []*labrpc.ClientEnd, me int, persister *tester.Persister, m
 		me:           me,
 		maxraftstate: maxraftstate,
 		applyCh:      make(chan raftapi.ApplyMsg),
+		stopCh:       make(chan struct{}),
 		sm:           sm,
 	}
 	if !useRaftStateMachine {
 		rsm.rf = raft.Make(servers, me, persister, rsm.applyCh)
 	}
+	go rsm.reader()
 	return rsm
 }
 
@@ -75,6 +84,28 @@ func (rsm *RSM) Raft() raftapi.Raft {
 	return rsm.rf
 }
 
+func (rsm *RSM) NextId() int {
+	return int(rand.Int63())
+	// return int(atomic.AddInt64(&rsm.idCounter, 1))
+}
+
+func (rsm *RSM) reader() {
+	for msg := range rsm.applyCh {
+		cmd := msg.Command.(Op)
+		// fmt.Printf("me = %d: Reader received message, id = %d\n", rsm.me, cmd.Id)
+		ret := rsm.sm.DoOp(cmd.Req)
+		if chRaw, ok := rsm.registry.Load(cmd.Id); ok {
+			ch := chRaw.(chan any)
+			select {
+			case ch <- ret:
+			default:
+				fmt.Printf("me = %d: channel closed for id = %v, dropping message\n", rsm.me, cmd.Id)
+			}
+		}
+	}
+	fmt.Printf("me = %d: Applych closed, return\n", rsm.me)
+	close(rsm.stopCh)
+}
 
 // Submit a command to Raft, and wait for it to be committed.  It
 // should return ErrWrongLeader if client should find new leader and
@@ -86,5 +117,38 @@ func (rsm *RSM) Submit(req any) (rpc.Err, any) {
 	// is the argument to Submit and id is a unique id for the op.
 
 	// your code here
-	return rpc.ErrWrongLeader, nil // i'm dead, try another server.
+	id := rsm.NextId()
+	op := Op{Me: rsm.me, Id: id, Req: req}
+	respCh := make(chan any, 1)
+	// fmt.Printf("me = %d: Generate id = %d\n", rsm.me, id)
+	rsm.registry.Store(id, respCh)
+	defer func() {
+		rsm.registry.Delete(id)
+		close(respCh)
+	}()
+	index, term, leader := rsm.rf.Start(op)
+	if !leader {
+		return rpc.ErrWrongLeader, nil
+	}
+	for {
+		select {
+		case ret := <-respCh:
+			// fmt.Printf("me = %d: Command OK, id = %d\n", rsm.me, id)
+			return rpc.OK, ret
+		case <-rsm.stopCh:
+			// fmt.Printf("me = %d: Submit stopped, applyCh closed\n", rsm.me)
+			return rpc.ErrWrongLeader, nil
+		default:
+			currentTerm, isLeader := rsm.Raft().GetState()
+			if !isLeader || currentTerm != term {
+				return rpc.ErrWrongLeader, nil
+			}
+			id2, ok := rsm.index2Id.Load(index)
+			if ok && id2 != id {
+				// different request has appeared at the index returned by Start()
+				return rpc.ErrWrongLeader, nil
+			}
+			time.Sleep(time.Duration(10) * time.Millisecond)
+		}
+	}
 }

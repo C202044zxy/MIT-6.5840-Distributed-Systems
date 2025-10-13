@@ -160,6 +160,7 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 func (rf *Raft) Kill() {
 	atomic.StoreInt32(&rf.dead, 1)
 	// Your code here, if desired.
+	close(rf.applyCh)
 }
 
 func (rf *Raft) killed() bool {
@@ -278,9 +279,10 @@ func (rf *Raft) applyLog() {
 			}
 			rf.lastApplied++
 			rf.applyCh <- msg
+			rf.mu.Unlock()
+			continue
 		}
 		rf.mu.Unlock()
-
 		time.Sleep(time.Duration(10) * time.Millisecond)
 	}
 }
