@@ -1,16 +1,29 @@
 package kvraft
 
 import (
-	"6.5840/kvsrv1/rpc"
-	"6.5840/kvtest1"
-	"6.5840/tester1"
-)
+	"sync/atomic"
+	"time"
 
+	"6.5840/kvsrv1/rpc"
+	kvtest "6.5840/kvtest1"
+	tester "6.5840/tester1"
+)
 
 type Clerk struct {
 	clnt    *tester.Clnt
 	servers []string
 	// You will have to modify this struct.
+	leaderId atomic.Int32
+}
+
+// LoadLeaderId atomic read leaderId
+func (ck *Clerk) LoadLeaderId() int {
+	return int(ck.leaderId.Load())
+}
+
+// StoreLeaderId atomic write leaderId
+func (ck *Clerk) StoreLeaderId(id int) {
+	ck.leaderId.Store(int32(id))
 }
 
 func MakeClerk(clnt *tester.Clnt, servers []string) kvtest.IKVClerk {
@@ -30,9 +43,29 @@ func MakeClerk(clnt *tester.Clnt, servers []string) kvtest.IKVClerk {
 // must match the declared types of the RPC handler function's
 // arguments. Additionally, reply must be passed as a pointer.
 func (ck *Clerk) Get(key string) (string, rpc.Tversion, rpc.Err) {
-
-	// You will have to modify this function.
-	return "", 0, ""
+	leader_id := ck.LoadLeaderId()
+	for {
+		args := rpc.GetArgs{Key: key}
+		reply := rpc.GetReply{}
+		ok := ck.clnt.Call(ck.servers[leader_id], "KVServer.Get", &args, &reply)
+		if !ok {
+			// keep trying if rpc fails
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+		if reply.Err == rpc.ErrWrongLeader {
+			leader_id = (leader_id + 1) % len(ck.servers)
+			ck.StoreLeaderId(leader_id)
+		}
+		if reply.Err == rpc.ErrNoKey {
+			// key does not exist
+			return "", 0, rpc.ErrNoKey
+		}
+		if reply.Err == rpc.OK {
+			return reply.Value, reply.Version, reply.Err
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 // Put updates key with value only if the version in the
@@ -54,5 +87,35 @@ func (ck *Clerk) Get(key string) (string, rpc.Tversion, rpc.Err) {
 // arguments. Additionally, reply must be passed as a pointer.
 func (ck *Clerk) Put(key string, value string, version rpc.Tversion) rpc.Err {
 	// You will have to modify this function.
-	return ""
+	cnt := 0
+	leader_id := ck.LoadLeaderId()
+	for {
+		args := rpc.PutArgs{Key: key, Value: value, Version: version}
+		reply := rpc.PutReply{}
+		ok := ck.clnt.Call(ck.servers[leader_id], "KVServer.Put", &args, &reply)
+		if !ok {
+			cnt++
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+		if reply.Err == rpc.ErrWrongLeader {
+			leader_id = (leader_id + 1) % len(ck.servers)
+			ck.StoreLeaderId(leader_id)
+		}
+		if reply.Err == rpc.ErrVersion {
+			if cnt == 0 {
+				// first rpc. put not performed on server
+				return rpc.ErrVersion
+			}
+			// resend rpc. put might be performed on server
+			return rpc.ErrMaybe
+		}
+		if reply.Err == rpc.ErrNoKey {
+			return rpc.ErrNoKey
+		}
+		if reply.Err == rpc.OK {
+			return rpc.OK
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }
