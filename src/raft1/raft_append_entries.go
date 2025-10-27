@@ -145,13 +145,14 @@ func (rf *Raft) replicateLog() {
 		me := rf.me
 		log := rf.log
 		// IMPT: nextIndex := rf.nextIndex just copies reference
+		for i := 0; i < rf.numPeers; i++ {
+			rf.nextIndex[i] = max(rf.nextIndex[i], rf.offset)
+			rf.nextIndex[i] = min(rf.nextIndex[i], rf.offset+len(rf.log))
+		}
 		nextIndex := CopySlice(rf.nextIndex)
 		commitIndex := rf.commitIndex
 		offset := rf.offset
 		lastIncludedTerm := rf.lastIncludedTerm
-		for i := 0; i < rf.numPeers; i++ {
-			rf.nextIndex[i] = max(rf.nextIndex[i], rf.offset)
-		}
 		rf.mu.Unlock()
 
 		for i := 0; i < rf.numPeers; i++ {
@@ -163,7 +164,7 @@ func (rf *Raft) replicateLog() {
 			go func() {
 				prev := nextIndex[i] - 1
 				prevLogTerm := lastIncludedTerm
-				if prev >= offset {
+				if prev >= offset && prev-offset < len(log) {
 					prevLogTerm = log[prev-offset].Term
 				}
 				args := AppendEntriesArgs{
@@ -202,6 +203,6 @@ func (rf *Raft) replicateLog() {
 				}
 			}()
 		}
-		time.Sleep(time.Duration(150) * time.Millisecond)
+		time.Sleep(time.Duration(10) * time.Millisecond)
 	}
 }

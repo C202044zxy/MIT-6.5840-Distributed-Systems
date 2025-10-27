@@ -160,6 +160,8 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 func (rf *Raft) Kill() {
 	atomic.StoreInt32(&rf.dead, 1)
 	// Your code here, if desired.
+	rf.mu.Lock()
+	defer rf.mu.Unlock()
 	close(rf.applyCh)
 }
 
@@ -270,7 +272,7 @@ func (rf *Raft) applyLog() {
 	for !rf.killed() {
 
 		rf.mu.Lock()
-		if rf.commitIndex > rf.lastApplied {
+		if rf.commitIndex > rf.lastApplied && rf.lastApplied+1 < len(rf.log)+rf.offset {
 			DPrintf("Svr %d Apply log %d into the channel", rf.me, rf.lastApplied+1)
 			msg := raftapi.ApplyMsg{
 				CommandValid: true,
