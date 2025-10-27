@@ -198,7 +198,7 @@ func (rf *Raft) replicateLog() {
 					rf.matchIndex[i] = len(log) - 1 + offset
 				} else {
 					// decrease the nextIndex
-					nextIndex[i] = reply.NextIndex
+					rf.nextIndex[i] = reply.NextIndex
 				}
 			}()
 		}
