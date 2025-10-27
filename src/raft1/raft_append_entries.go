@@ -144,7 +144,8 @@ func (rf *Raft) replicateLog() {
 		// lab(3D): only solve index >= offset. so max is applied
 		me := rf.me
 		log := rf.log
-		nextIndex := rf.nextIndex
+		// IMPT: nextIndex := rf.nextIndex just copies reference
+		nextIndex := CopySlice(rf.nextIndex)
 		commitIndex := rf.commitIndex
 		offset := rf.offset
 		lastIncludedTerm := rf.lastIncludedTerm

@@ -5,7 +5,6 @@ import (
 	"os"
 )
 
-// Debugging
 const Debug = false
 
 /*
@@ -29,4 +28,13 @@ func DPrintf(format string, a ...interface{}) {
 	if debugLogFile != nil {
 		fmt.Fprintf(debugLogFile, format+"\n", a...)
 	}
+}
+
+func CopySlice[T any](src []T) []T {
+	if src == nil {
+		return nil
+	}
+	dst := make([]T, len(src))
+	copy(dst, src)
+	return dst
 }
