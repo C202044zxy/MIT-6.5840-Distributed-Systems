@@ -2,6 +2,7 @@ package kvsrv
 
 import (
 	"time"
+
 	"6.5840/kvsrv1/rpc"
 	kvtest "6.5840/kvtest1"
 	tester "6.5840/tester1"
@@ -31,7 +32,7 @@ func MakeClerk(clnt *tester.Clnt, server string) kvtest.IKVClerk {
 func (ck *Clerk) Get(key string) (string, rpc.Tversion, rpc.Err) {
 	// You will have to modify this function.
 	for {
-		args := rpc.GetArgs{key}
+		args := rpc.GetArgs{Key: key}
 		reply := rpc.GetReply{}
 		ok := ck.clnt.Call(ck.server, "KVServer.Get", &args, &reply)
 		if !ok {
@@ -71,7 +72,7 @@ func (ck *Clerk) Put(key, value string, version rpc.Tversion) rpc.Err {
 	cnt := 0
 	for {
 		cnt++
-		args := rpc.PutArgs{key, value, version}
+		args := rpc.PutArgs{Key: key, Value: value, Version: version}
 		reply := rpc.PutReply{}
 		ok := ck.clnt.Call(ck.server, "KVServer.Put", &args, &reply)
 		if !ok {
