@@ -1,6 +1,7 @@
 package kvraft
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 
@@ -69,6 +70,7 @@ func (kv *KVServer) put_impl(args *rpc.PutArgs, reply *rpc.PutReply) {
 			reply.Err = rpc.ErrNoKey
 		}
 	}
+	// fmt.Printf("me = %v, args = %v, map = %v\n", kv.me, args, kv.mp)
 }
 
 // To type-cast req to the right type, take a look at Go's type switches or type
@@ -79,16 +81,16 @@ func (kv *KVServer) put_impl(args *rpc.PutArgs, reply *rpc.PutReply) {
 func (kv *KVServer) DoOp(raw_req any) any {
 	// detect req type and dispatch to req implementations
 	switch req := raw_req.(type) {
-	case *rpc.GetArgs:
+	case rpc.GetArgs:
 		reply := rpc.GetReply{}
-		kv.get_impl(req, &reply)
+		kv.get_impl(&req, &reply)
 		return reply
-	case *rpc.PutArgs:
+	case rpc.PutArgs:
 		reply := rpc.PutReply{}
-		kv.put_impl(req, &reply)
+		kv.put_impl(&req, &reply)
 		return reply
 	default:
-		// fmt.Printf("DoOp: unknown req type = %T\n", raw_req)
+		fmt.Printf("DoOp: unknown req type = %T\n", raw_req)
 		return nil
 	}
 }
@@ -106,7 +108,7 @@ func (kv *KVServer) Get(args *rpc.GetArgs, reply *rpc.GetReply) {
 	// Your code here. Use kv.rsm.Submit() to submit args
 	// You can use go's type casts to turn the any return value
 	// of Submit() into a GetReply: rep.(rpc.GetReply)
-	err, rep := kv.rsm.Submit(args)
+	err, rep := kv.rsm.Submit(*args)
 	if err != rpc.OK {
 		reply.Err = err
 		return
@@ -118,7 +120,7 @@ func (kv *KVServer) Put(args *rpc.PutArgs, reply *rpc.PutReply) {
 	// Your code here. Use kv.rsm.Submit() to submit args
 	// You can use go's type casts to turn the any return value
 	// of Submit() into a PutReply: rep.(rpc.PutReply)
-	err, rep := kv.rsm.Submit(args)
+	err, rep := kv.rsm.Submit(*args)
 	if err != rpc.OK {
 		reply.Err = err
 		return

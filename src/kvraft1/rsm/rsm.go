@@ -92,7 +92,7 @@ func (rsm *RSM) NextId() int {
 func (rsm *RSM) reader() {
 	for msg := range rsm.applyCh {
 		cmd := msg.Command.(Op)
-		// fmt.Printf("me = %d: Reader received message, id = %d\n", rsm.me, cmd.Id)
+		// fmt.Printf("me = %d: Reader received message, id = %d, cmd = %v\n", rsm.me, cmd.Id, cmd)
 		ret := rsm.sm.DoOp(cmd.Req)
 		if chRaw, ok := rsm.registry.Load(cmd.Id); ok {
 			ch := chRaw.(chan any)
@@ -103,7 +103,7 @@ func (rsm *RSM) reader() {
 			}
 		}
 	}
-	fmt.Printf("me = %d: Applych closed, return\n", rsm.me)
+	// fmt.Printf("me = %d: Applych closed, return\n", rsm.me)
 	close(rsm.stopCh)
 }
 

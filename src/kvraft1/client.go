@@ -44,18 +44,16 @@ func MakeClerk(clnt *tester.Clnt, servers []string) kvtest.IKVClerk {
 // arguments. Additionally, reply must be passed as a pointer.
 func (ck *Clerk) Get(key string) (string, rpc.Tversion, rpc.Err) {
 	leader_id := ck.LoadLeaderId()
+	defer ck.StoreLeaderId(leader_id)
 	for {
 		args := rpc.GetArgs{Key: key}
 		reply := rpc.GetReply{}
 		ok := ck.clnt.Call(ck.servers[leader_id], "KVServer.Get", &args, &reply)
 		if !ok {
 			// keep trying if rpc fails
+			leader_id = (leader_id + 1) % len(ck.servers)
 			time.Sleep(100 * time.Millisecond)
 			continue
-		}
-		if reply.Err == rpc.ErrWrongLeader {
-			leader_id = (leader_id + 1) % len(ck.servers)
-			ck.StoreLeaderId(leader_id)
 		}
 		if reply.Err == rpc.ErrNoKey {
 			// key does not exist
@@ -64,6 +62,7 @@ func (ck *Clerk) Get(key string) (string, rpc.Tversion, rpc.Err) {
 		if reply.Err == rpc.OK {
 			return reply.Value, reply.Version, reply.Err
 		}
+		leader_id = (leader_id + 1) % len(ck.servers)
 		time.Sleep(100 * time.Millisecond)
 	}
 }
@@ -87,23 +86,21 @@ func (ck *Clerk) Get(key string) (string, rpc.Tversion, rpc.Err) {
 // arguments. Additionally, reply must be passed as a pointer.
 func (ck *Clerk) Put(key string, value string, version rpc.Tversion) rpc.Err {
 	// You will have to modify this function.
-	cnt := 0
+	cnt := make([]int, len(ck.servers))
 	leader_id := ck.LoadLeaderId()
+	defer ck.StoreLeaderId(leader_id)
 	for {
 		args := rpc.PutArgs{Key: key, Value: value, Version: version}
 		reply := rpc.PutReply{}
 		ok := ck.clnt.Call(ck.servers[leader_id], "KVServer.Put", &args, &reply)
 		if !ok {
-			cnt++
+			cnt[leader_id]++
+			leader_id = (leader_id + 1) % len(ck.servers)
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
-		if reply.Err == rpc.ErrWrongLeader {
-			leader_id = (leader_id + 1) % len(ck.servers)
-			ck.StoreLeaderId(leader_id)
-		}
 		if reply.Err == rpc.ErrVersion {
-			if cnt == 0 {
+			if cnt[leader_id] == 0 {
 				// first rpc. put not performed on server
 				return rpc.ErrVersion
 			}
@@ -116,6 +113,7 @@ func (ck *Clerk) Put(key string, value string, version rpc.Tversion) rpc.Err {
 		if reply.Err == rpc.OK {
 			return rpc.OK
 		}
+		leader_id = (leader_id + 1) % len(ck.servers)
 		time.Sleep(100 * time.Millisecond)
 	}
 }
