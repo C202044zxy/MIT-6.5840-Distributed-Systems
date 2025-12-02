@@ -135,7 +135,7 @@ func (rf *Raft) sendSnapshot() {
 				continue
 			}
 			DPrintf("master %d sends InstallSnapshot to svr %d", rf.me, i)
-			go func() {
+			go func(server int) {
 				args := InstallSnapshotArgs{
 					Term:              term,
 					LastIncludedIndex: offset - 1,
@@ -143,7 +143,7 @@ func (rf *Raft) sendSnapshot() {
 					Data:              snapshot,
 				}
 				reply := InstallSnapshotReply{}
-				ok := rf.sendInstallSnapshot(i, &args, &reply)
+				ok := rf.sendInstallSnapshot(server, &args, &reply)
 				if !ok {
 					return
 				}
@@ -154,9 +154,9 @@ func (rf *Raft) sendSnapshot() {
 					return
 				}
 				if reply.Succ {
-					rf.matchIndex[i] = max(rf.matchIndex[i], offset-1)
+					rf.matchIndex[server] = max(rf.matchIndex[server], offset-1)
 				}
-			}()
+			}(i)
 		}
 		time.Sleep(time.Duration(150) * time.Millisecond)
 	}

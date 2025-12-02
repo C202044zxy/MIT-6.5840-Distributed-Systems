@@ -93,7 +93,7 @@ func (rf *Raft) collectVotes() {
 		if i == rf.me {
 			continue
 		}
-		go func() {
+		go func(server int) {
 			args := RequestVoteArgs{
 				Term:         term,
 				CandidateId:  me,
@@ -101,7 +101,7 @@ func (rf *Raft) collectVotes() {
 				LastLogTerm:  lastLogTerm,
 			}
 			reply := RequestVoteReply{}
-			ok := rf.sendRequestVote(i, &args, &reply)
+			ok := rf.sendRequestVote(server, &args, &reply)
 			if !ok {
 				return
 			}
@@ -121,7 +121,7 @@ func (rf *Raft) collectVotes() {
 			if reply.VoteGranted == 1 {
 				voteMutex.Lock()
 				voteCount++
-				DPrintf("Svr %d Get Votes from svr %d", me, i)
+				DPrintf("Svr %d Get Votes from svr %d", me, server)
 				if voteCount*2 > rf.numPeers && !successed {
 					// get the majority of votes
 					successed = true
@@ -129,6 +129,6 @@ func (rf *Raft) collectVotes() {
 				}
 				voteMutex.Unlock()
 			}
-		}()
+		}(i)
 	}
 }

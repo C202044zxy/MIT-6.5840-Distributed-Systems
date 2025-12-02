@@ -100,14 +100,14 @@ func (rf *Raft) heartbeat() {
 			if i == rf.me {
 				continue
 			}
-			go func() {
+			go func(server int) {
 				args := AppendEntriesArgs{
 					Term:         term,
 					LeaderId:     me,
 					PrevLogIndex: -1,
 				}
 				reply := AppendEntriesReply{}
-				ok := rf.sendAppendEntries(i, &args, &reply)
+				ok := rf.sendAppendEntries(server, &args, &reply)
 				if !ok {
 					return
 				}
@@ -123,7 +123,7 @@ func (rf *Raft) heartbeat() {
 					// the state has changed. halt
 					return
 				}
-			}()
+			}(i)
 		}
 		time.Sleep(time.Duration(150) * time.Millisecond)
 	}
@@ -161,8 +161,8 @@ func (rf *Raft) replicateLog() {
 			}
 			// send request even if no new log to append
 			// since this RPC does distribute commit information
-			go func() {
-				prev := nextIndex[i] - 1
+			go func(server int) {
+				prev := nextIndex[server] - 1
 				prevLogTerm := lastIncludedTerm
 				if prev >= offset && prev-offset < len(log) {
 					prevLogTerm = log[prev-offset].Term
@@ -172,12 +172,12 @@ func (rf *Raft) replicateLog() {
 					LeaderId:     me,
 					PrevLogIndex: prev,
 					PrevLogTerm:  prevLogTerm,
-					Entries:      log[nextIndex[i]-offset:],
+					Entries:      log[nextIndex[server]-offset:],
 					LeaderCommit: commitIndex,
 					Offset:       offset,
 				}
 				reply := AppendEntriesReply{}
-				ok := rf.sendAppendEntries(i, &args, &reply)
+				ok := rf.sendAppendEntries(server, &args, &reply)
 				if !ok {
 					return
 				}
@@ -195,13 +195,13 @@ func (rf *Raft) replicateLog() {
 				}
 				if reply.Success {
 					// have pushed all available logs into the follower
-					rf.nextIndex[i] = len(log) + offset
-					rf.matchIndex[i] = len(log) - 1 + offset
+					rf.nextIndex[server] = len(log) + offset
+					rf.matchIndex[server] = len(log) - 1 + offset
 				} else {
 					// decrease the nextIndex
-					rf.nextIndex[i] = reply.NextIndex
+					rf.nextIndex[server] = reply.NextIndex
 				}
-			}()
+			}(i)
 		}
 		time.Sleep(time.Duration(10) * time.Millisecond)
 	}
