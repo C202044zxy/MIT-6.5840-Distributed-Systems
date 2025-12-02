@@ -52,7 +52,7 @@ func (ck *Clerk) Get(key string) (string, rpc.Tversion, rpc.Err) {
 		if !ok {
 			// keep trying if rpc fails
 			leader_id = (leader_id + 1) % len(ck.servers)
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(10 * time.Millisecond)
 			continue
 		}
 		if reply.Err == rpc.ErrNoKey {
@@ -63,7 +63,7 @@ func (ck *Clerk) Get(key string) (string, rpc.Tversion, rpc.Err) {
 			return reply.Value, reply.Version, reply.Err
 		}
 		leader_id = (leader_id + 1) % len(ck.servers)
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
@@ -96,7 +96,7 @@ func (ck *Clerk) Put(key string, value string, version rpc.Tversion) rpc.Err {
 		if !ok {
 			cnt[leader_id]++
 			leader_id = (leader_id + 1) % len(ck.servers)
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(10 * time.Millisecond)
 			continue
 		}
 		if reply.Err == rpc.ErrVersion {
@@ -114,6 +114,6 @@ func (ck *Clerk) Put(key string, value string, version rpc.Tversion) rpc.Err {
 			return rpc.OK
 		}
 		leader_id = (leader_id + 1) % len(ck.servers)
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
 }

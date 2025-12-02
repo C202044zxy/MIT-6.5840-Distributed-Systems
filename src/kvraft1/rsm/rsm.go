@@ -148,7 +148,7 @@ func (rsm *RSM) Submit(req any) (rpc.Err, any) {
 				// different request has appeared at the index returned by Start()
 				return rpc.ErrWrongLeader, nil
 			}
-			time.Sleep(time.Duration(10) * time.Millisecond)
+			time.Sleep(time.Duration(5) * time.Millisecond)
 		}
 	}
 }
