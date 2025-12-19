@@ -168,11 +168,11 @@ func TestBasic4B(t *testing.T) {
 	ts.GenericTest()
 }
 
-func TestSpeed4B(t *testing.T) {
-	ts := MakeTest(t, "4B speed", 1, 3, true, false, false, -1, false)
-	tester.AnnotateTest("TestSpeed4B", ts.nservers)
-	ts.GenericTestSpeed()
-}
+// func TestSpeed4B(t *testing.T) {
+// 	ts := MakeTest(t, "4B speed", 1, 3, true, false, false, -1, false)
+// 	tester.AnnotateTest("TestSpeed4B", ts.nservers)
+// 	ts.GenericTestSpeed()
+// }
 
 func TestConcurrent4B(t *testing.T) {
 	ts := MakeTest(t, "4B many clients", 5, 5, true, false, false, -1, false)

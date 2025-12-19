@@ -92,6 +92,7 @@ func (rsm *RSM) NextId() int {
 func (rsm *RSM) reader() {
 	for msg := range rsm.applyCh {
 		cmd := msg.Command.(Op)
+		rsm.index2Id.Store(msg.CommandIndex, cmd.Id)
 		// fmt.Printf("me = %d: Reader received message, id = %d, cmd = %v\n", rsm.me, cmd.Id, cmd)
 		ret := rsm.sm.DoOp(cmd.Req)
 		if chRaw, ok := rsm.registry.Load(cmd.Id); ok {
