@@ -60,7 +60,7 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	}
 
 	reply.Term = rf.currentTerm
-	if rf.votedFor == -1 {
+	if rf.votedFor == -1 || rf.votedFor == args.CandidateId {
 		// can vote for the requesting candidate
 		rf.votedFor = args.CandidateId
 		rf.persist()

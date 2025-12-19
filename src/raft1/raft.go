@@ -189,12 +189,17 @@ func (rf *Raft) convert2Follower(term int) {
 func (rf *Raft) convert2Leader() {
 	DPrintf("Svr %v becomes leader", rf.me)
 	rf.state = Leader
+	// Append a no-op entry so this term can be committed and unblock older entries.
+	// rf.log = append(rf.log, Log{Command: nil, Term: rf.currentTerm})
+	// rf.persist()
 	rf.nextIndex = make([]int, rf.numPeers)
 	rf.matchIndex = make([]int, rf.numPeers)
 	for i := 0; i < rf.numPeers; i++ {
 		rf.nextIndex[i] = len(rf.log) + rf.offset
-		rf.matchIndex[i] = -1 // match nothing here
+		rf.matchIndex[i] = rf.offset - 1 // match nothing here
 	}
+	// Leader always matches its own log.
+	rf.matchIndex[rf.me] = len(rf.log) - 1 + rf.offset
 	go rf.heartbeat()
 	go rf.replicateLog()
 	go rf.commitLog()
@@ -272,7 +277,8 @@ func (rf *Raft) applyLog() {
 	for !rf.killed() {
 
 		rf.mu.Lock()
-		if rf.commitIndex > rf.lastApplied && rf.lastApplied+1 < len(rf.log)+rf.offset {
+		// Ensure we don't apply entries that were already in the snapshot
+		if rf.commitIndex > rf.lastApplied && rf.lastApplied+1 >= rf.offset && rf.lastApplied+1 < len(rf.log)+rf.offset {
 			DPrintf("Svr %d Apply log %d into the channel", rf.me, rf.lastApplied+1)
 			msg := raftapi.ApplyMsg{
 				CommandValid: true,
@@ -281,8 +287,6 @@ func (rf *Raft) applyLog() {
 			}
 			rf.lastApplied++
 			rf.applyCh <- msg
-			rf.mu.Unlock()
-			continue
 		}
 		rf.mu.Unlock()
 		time.Sleep(time.Duration(10) * time.Millisecond)

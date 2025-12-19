@@ -855,7 +855,6 @@ func TestPersist23C(t *testing.T) {
 		ts.restart((leader1 + 3) % servers)
 		tester.AnnotateRestart([]int{(leader1 + 3) % servers})
 
-		fmt.Printf("group: %d %d %d(must be leader)\n", (leader1+1)%servers, (leader1+2)%servers, (leader1+3)%servers)
 		ts.one(10+index, servers-2, true)
 		index++
 
@@ -1232,11 +1231,6 @@ const (
 )
 
 func snapcommon(t *testing.T, name string, disconnect bool, reliable bool, crash bool) {
-	err := os.Truncate("debug.log", 0)
-	if err != nil {
-		panic(err)
-	}
-
 	iters := 30
 	servers := 3
 	ts := makeTest(t, servers, reliable, true)

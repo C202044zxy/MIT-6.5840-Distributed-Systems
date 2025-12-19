@@ -25,59 +25,82 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	defer rf.mu.Unlock()
 
 	term := args.Term
+	// Reject stale term immediately.
 	if term < rf.currentTerm {
 		// reject the request
 		reply.Term = rf.currentTerm
 		reply.Success = false
 		return
 	}
+	// Step down for newer or same-term leader and reset election timer.
+	if term > rf.currentTerm || rf.state != Follower {
+		rf.convert2Follower(term)
+	}
+	rf.lastHeartbeat = time.Now()
+	reply.Term = rf.currentTerm
+
 	if args.PrevLogIndex == -1 {
-		// heartbeat message
-		if term > rf.currentTerm || rf.state != Follower {
-			rf.convert2Follower(term)
-		}
-		// receive heartbeat message from leader
-		reply.Term = rf.currentTerm
+		// heartbeat message (no log append)
 		reply.Success = true
-		rf.lastHeartbeat = time.Now()
 		return
 	}
+
 	// append entries message
-	// consistency check
-	reply.Term = rf.currentTerm
 	prevLogIndex := args.PrevLogIndex
 	prevLogTerm := args.PrevLogTerm
 	leaderCommit := args.LeaderCommit
 	offset := args.Offset
 
-	if rf.offset+len(rf.log) <= prevLogIndex ||
-		(prevLogIndex-rf.offset >= 0 && prevLogTerm != rf.log[prevLogIndex-rf.offset].Term) {
-		// no logs at that index or the log is not consistent with leader
+	// Consistency checks with snapshot boundary awareness.
+	// Leader is behind follower's snapshot.
+	if prevLogIndex < rf.offset-1 {
 		reply.Success = false
-		if rf.offset+len(rf.log) <= prevLogIndex {
-			reply.NextIndex = len(rf.log) + rf.offset
-		} else {
-			// skip invalid log in a row
-			invalidTerm := rf.log[prevLogIndex-rf.offset].Term
-			for i := prevLogIndex - rf.offset; i >= 0 && rf.log[i].Term == invalidTerm; i-- {
-				reply.NextIndex = i + rf.offset
-			}
-		}
-		reply.NextIndex = max(offset, reply.NextIndex)
+		reply.NextIndex = rf.offset
 		return
 	}
-	// prev must be the last committed entry
-	// fix(2B): must +1 here, should include log entry at prevLogIndex
-	if prevLogIndex+1-rf.offset <= 0 {
-		rf.log = make([]Log, 0)
-		rf.log = append(rf.log, args.Entries...)
+	// PrevLogIndex hits the snapshot boundary: verify lastIncludedTerm.
+	if prevLogIndex == rf.offset-1 && prevLogTerm != rf.lastIncludedTerm {
+		reply.Success = false
+		reply.NextIndex = rf.offset
+		return
+	}
+	// PrevLogIndex within current log range?
+	if prevLogIndex >= rf.offset+len(rf.log) {
+		reply.Success = false
+		reply.NextIndex = rf.offset + len(rf.log)
+		return
+	}
+	if prevLogIndex >= rf.offset {
+		// log term must match
+		if prevLogTerm != rf.log[prevLogIndex-rf.offset].Term {
+			reply.Success = false
+			// backtrack to first index of the conflicting term
+			invalidTerm := rf.log[prevLogIndex-rf.offset].Term
+			rollback := prevLogIndex - rf.offset
+			for rollback >= 0 && rf.log[rollback].Term == invalidTerm {
+				rollback--
+			}
+			reply.NextIndex = max(offset, rollback+1+rf.offset)
+			return
+		}
+	}
+
+	// Apply the new entries, truncating any conflicting suffix.
+	insertPoint := prevLogIndex + 1 - rf.offset
+	if insertPoint < 0 {
+		insertPoint = 0
+	}
+	if insertPoint < len(rf.log) {
+		rf.log = append(rf.log[:insertPoint], args.Entries...)
 	} else {
-		rf.log = append(rf.log[:prevLogIndex+1-rf.offset], args.Entries...)
+		rf.log = append(rf.log, args.Entries...)
 	}
 	rf.persist()
+
 	reply.Success = true
 	if leaderCommit > rf.commitIndex {
-		rf.commitIndex = min(leaderCommit, len(rf.log)-1+rf.offset)
+		newCommitIndex := min(leaderCommit, len(rf.log)-1+rf.offset)
+		rf.commitIndex = max(rf.offset-1, newCommitIndex)
 	}
 }
 
@@ -203,6 +226,6 @@ func (rf *Raft) replicateLog() {
 				}
 			}(i)
 		}
-		time.Sleep(time.Duration(10) * time.Millisecond)
+		time.Sleep(time.Duration(150) * time.Millisecond)
 	}
 }
