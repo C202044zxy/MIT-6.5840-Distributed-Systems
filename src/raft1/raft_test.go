@@ -10,7 +10,6 @@ package raft
 
 import (
 	"fmt"
-	"os"
 
 	// "log"
 	"math/rand"
@@ -814,10 +813,6 @@ func TestPersist13C(t *testing.T) {
 }
 
 func TestPersist23C(t *testing.T) {
-	// clear the log file
-	debugLogFile, _ := os.OpenFile("debug.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
-	debugLogFile.Close()
-
 	servers := 5
 	ts := makeTest(t, servers, true, false)
 	defer ts.cleanup()
