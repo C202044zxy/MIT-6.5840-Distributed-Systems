@@ -44,10 +44,10 @@ type RSM struct {
 	maxraftstate int // snapshot if log grows this big
 	sm           StateMachine
 	// Your definitions here.
-	idCounter int64
-	registry  sync.Map
-	index2Id  sync.Map
-	stopCh    chan struct{}
+	registry    sync.Map
+	index2Id    sync.Map
+	stopCh      chan struct{}
+	lastApplied int
 }
 
 // servers[] contains the ports of the set of
@@ -72,9 +72,13 @@ func MakeRSM(servers []*labrpc.ClientEnd, me int, persister *tester.Persister, m
 		applyCh:      make(chan raftapi.ApplyMsg),
 		stopCh:       make(chan struct{}),
 		sm:           sm,
+		lastApplied:  0,
 	}
 	if !useRaftStateMachine {
 		rsm.rf = raft.Make(servers, me, persister, rsm.applyCh)
+	}
+	if persister.SnapshotSize() > 0 {
+		sm.Restore(persister.ReadSnapshot())
 	}
 	go rsm.reader()
 	return rsm
@@ -86,11 +90,17 @@ func (rsm *RSM) Raft() raftapi.Raft {
 
 func (rsm *RSM) NextId() int {
 	return int(rand.Int63())
-	// return int(atomic.AddInt64(&rsm.idCounter, 1))
 }
 
 func (rsm *RSM) reader() {
 	for msg := range rsm.applyCh {
+		if msg.SnapshotValid {
+			rsm.sm.Restore(msg.Snapshot)
+			rsm.mu.Lock()
+			rsm.lastApplied = msg.SnapshotIndex
+			rsm.mu.Unlock()
+			continue
+		}
 		cmd := msg.Command.(Op)
 		rsm.index2Id.Store(msg.CommandIndex, cmd.Id)
 		// fmt.Printf("me = %d: Reader received message, id = %d, cmd = %v\n", rsm.me, cmd.Id, cmd)
@@ -102,6 +112,14 @@ func (rsm *RSM) reader() {
 			default:
 				fmt.Printf("me = %d: channel closed for id = %v, dropping message\n", rsm.me, cmd.Id)
 			}
+		}
+		// Lab(4C): snapshot
+		rsm.mu.Lock()
+		rsm.lastApplied = msg.CommandIndex
+		rsm.mu.Unlock()
+		if rsm.maxraftstate != -1 && rsm.rf.PersistBytes() > rsm.maxraftstate {
+			snapshot := rsm.sm.Snapshot()
+			rsm.rf.Snapshot(rsm.lastApplied, snapshot)
 		}
 	}
 	// fmt.Printf("me = %d: Applych closed, return\n", rsm.me)
