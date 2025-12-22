@@ -1,6 +1,7 @@
 package kvraft
 
 import (
+	"math/rand"
 	"sync/atomic"
 	"time"
 
@@ -14,6 +15,8 @@ type Clerk struct {
 	servers []string
 	// You will have to modify this struct.
 	leaderId atomic.Int32
+	clientId int64
+	seqNum   atomic.Int64
 }
 
 // LoadLeaderId atomic read leaderId
@@ -29,6 +32,9 @@ func (ck *Clerk) StoreLeaderId(id int) {
 func MakeClerk(clnt *tester.Clnt, servers []string) kvtest.IKVClerk {
 	ck := &Clerk{clnt: clnt, servers: servers}
 	// You'll have to add code here.
+	// Generate unique client ID using time and random number
+	ck.clientId = time.Now().UnixNano() + rand.Int63()
+	ck.seqNum.Store(0)
 	return ck
 }
 
@@ -43,10 +49,11 @@ func MakeClerk(clnt *tester.Clnt, servers []string) kvtest.IKVClerk {
 // must match the declared types of the RPC handler function's
 // arguments. Additionally, reply must be passed as a pointer.
 func (ck *Clerk) Get(key string) (string, rpc.Tversion, rpc.Err) {
+	seqNum := ck.seqNum.Add(1)
 	leader_id := ck.LoadLeaderId()
 	defer ck.StoreLeaderId(leader_id)
 	for {
-		args := rpc.GetArgs{Key: key}
+		args := rpc.GetArgs{Key: key, ClientId: ck.clientId, SeqNum: seqNum}
 		reply := rpc.GetReply{}
 		ok := ck.clnt.Call(ck.servers[leader_id], "KVServer.Get", &args, &reply)
 		if !ok {
@@ -86,21 +93,22 @@ func (ck *Clerk) Get(key string) (string, rpc.Tversion, rpc.Err) {
 // arguments. Additionally, reply must be passed as a pointer.
 func (ck *Clerk) Put(key string, value string, version rpc.Tversion) rpc.Err {
 	// You will have to modify this function.
-	cnt := make([]int, len(ck.servers))
+	seqNum := ck.seqNum.Add(1)
+	firstTry := true
 	leader_id := ck.LoadLeaderId()
 	defer ck.StoreLeaderId(leader_id)
 	for {
-		args := rpc.PutArgs{Key: key, Value: value, Version: version}
+		args := rpc.PutArgs{Key: key, Value: value, Version: version, ClientId: ck.clientId, SeqNum: seqNum}
 		reply := rpc.PutReply{}
 		ok := ck.clnt.Call(ck.servers[leader_id], "KVServer.Put", &args, &reply)
 		if !ok {
-			cnt[leader_id]++
+			firstTry = false
 			leader_id = (leader_id + 1) % len(ck.servers)
 			time.Sleep(10 * time.Millisecond)
 			continue
 		}
 		if reply.Err == rpc.ErrVersion {
-			if cnt[leader_id] == 0 {
+			if firstTry {
 				// first rpc. put not performed on server
 				return rpc.ErrVersion
 			}
@@ -113,6 +121,7 @@ func (ck *Clerk) Put(key string, value string, version rpc.Tversion) rpc.Err {
 		if reply.Err == rpc.OK {
 			return rpc.OK
 		}
+		firstTry = false
 		leader_id = (leader_id + 1) % len(ck.servers)
 		time.Sleep(10 * time.Millisecond)
 	}

@@ -19,14 +19,20 @@ type ValueVersion struct {
 	Version rpc.Tversion
 }
 
+type ClientSession struct {
+	LastSeqNum int64
+	LastReply  any
+}
+
 type KVServer struct {
 	me   int
 	dead int32 // set by Kill()
 	rsm  *rsm.RSM
 
 	// Your definitions here.
-	mu sync.Mutex
-	mp map[string]ValueVersion
+	mu       sync.Mutex
+	mp       map[string]ValueVersion
+	sessions map[int64]*ClientSession // Track last request per client
 }
 
 // Get returns the value and version for args.Key, if args.Key
@@ -34,14 +40,41 @@ type KVServer struct {
 func (kv *KVServer) get_impl(args *rpc.GetArgs, reply *rpc.GetReply) {
 	// Your code here.
 	kv.mu.Lock()
+	defer kv.mu.Unlock()
+
+	// Check if this is a duplicate request
+	if session, ok := kv.sessions[args.ClientId]; ok {
+		if args.SeqNum == session.LastSeqNum {
+			// Duplicate request - return cached result
+			*reply = session.LastReply.(rpc.GetReply)
+			return
+		} else if args.SeqNum < session.LastSeqNum {
+			// Old request - should not happen, but handle gracefully
+			pair, exists := kv.mp[args.Key]
+			if exists {
+				reply.Value = pair.Value
+				reply.Version = pair.Version
+				reply.Err = rpc.OK
+			} else {
+				reply.Err = rpc.ErrNoKey
+			}
+			return
+		}
+	}
+
 	pair, ok := kv.mp[args.Key]
-	kv.mu.Unlock()
 	if ok {
 		reply.Value = pair.Value
 		reply.Version = pair.Version
 		reply.Err = rpc.OK
 	} else {
 		reply.Err = rpc.ErrNoKey
+	}
+
+	// Update session with new result
+	kv.sessions[args.ClientId] = &ClientSession{
+		LastSeqNum: args.SeqNum,
+		LastReply:  *reply,
 	}
 }
 
@@ -53,6 +86,20 @@ func (kv *KVServer) put_impl(args *rpc.PutArgs, reply *rpc.PutReply) {
 	// Your code here.
 	kv.mu.Lock()
 	defer kv.mu.Unlock()
+
+	// Check if this is a duplicate request
+	if session, ok := kv.sessions[args.ClientId]; ok {
+		if args.SeqNum == session.LastSeqNum {
+			// Duplicate request - return cached result
+			*reply = session.LastReply.(rpc.PutReply)
+			return
+		} else if args.SeqNum < session.LastSeqNum {
+			// Old request - should not happen, but return OK to be safe
+			reply.Err = rpc.OK
+			return
+		}
+	}
+
 	pair, ok := kv.mp[args.Key]
 	if ok {
 		// the key exist
@@ -71,6 +118,12 @@ func (kv *KVServer) put_impl(args *rpc.PutArgs, reply *rpc.PutReply) {
 		} else {
 			reply.Err = rpc.ErrNoKey
 		}
+	}
+
+	// Update session with new result
+	kv.sessions[args.ClientId] = &ClientSession{
+		LastSeqNum: args.SeqNum,
+		LastReply:  *reply,
 	}
 	// fmt.Printf("me = %v, args = %v, map = %v\n", kv.me, args, kv.mp)
 }
@@ -105,6 +158,7 @@ func (kv *KVServer) Snapshot() []byte {
 	w := new(bytes.Buffer)
 	e := labgob.NewEncoder(w)
 	e.Encode(kv.mp)
+	e.Encode(kv.sessions)
 	return w.Bytes()
 }
 
@@ -118,11 +172,12 @@ func (kv *KVServer) Restore(data []byte) {
 
 	r := bytes.NewBuffer(data)
 	d := labgob.NewDecoder(r)
-	var mp map[string]ValueVersion
-	if d.Decode(&mp) != nil {
-		log.Fatalf("%v couldn't decode map", kv.me)
+	if d.Decode(&kv.mp) != nil {
+		log.Fatalf("%v couldn't decode kv.mp", kv.me)
 	}
-	kv.mp = mp
+	if d.Decode(&kv.sessions) != nil {
+		log.Fatalf("%v couldn't decode kv.sessions", kv.me)
+	}
 }
 
 func (kv *KVServer) Get(args *rpc.GetArgs, reply *rpc.GetReply) {
@@ -175,11 +230,15 @@ func StartKVServer(servers []*labrpc.ClientEnd, gid tester.Tgid, me int, persist
 	labgob.Register(rsm.Op{})
 	labgob.Register(rpc.PutArgs{})
 	labgob.Register(rpc.GetArgs{})
+	labgob.Register(rpc.PutReply{})
+	labgob.Register(rpc.GetReply{})
+	labgob.Register(ClientSession{})
 
 	kv := &KVServer{me: me}
 
 	kv.rsm = rsm.MakeRSM(servers, me, persister, maxraftstate, kv)
 	kv.mp = make(map[string]ValueVersion)
+	kv.sessions = make(map[int64]*ClientSession)
 	// You may need initialization code here.
 	return []tester.IService{kv, kv.rsm.Raft()}
 }
