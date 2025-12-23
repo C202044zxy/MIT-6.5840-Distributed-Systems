@@ -153,10 +153,13 @@ func (rf *Raft) heartbeat() {
 }
 
 func (rf *Raft) replicateLog() {
-	// replicateLog period 150 ms
 	rf.mu.Lock()
 	term := rf.currentTerm
 	rf.mu.Unlock()
+
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
 	for !rf.killed() {
 		rf.mu.Lock()
 		// check that state hasn't changed
@@ -226,6 +229,10 @@ func (rf *Raft) replicateLog() {
 				}
 			}(i)
 		}
-		time.Sleep(time.Duration(150) * time.Millisecond)
+		// wait for either 100ms timeout or signal from Start (new entries)
+		select {
+		case <-ticker.C:
+		case <-rf.replicateCh:
+		}
 	}
 }

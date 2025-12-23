@@ -69,7 +69,7 @@ func MakeRSM(servers []*labrpc.ClientEnd, me int, persister *tester.Persister, m
 	rsm := &RSM{
 		me:           me,
 		maxraftstate: maxraftstate,
-		applyCh:      make(chan raftapi.ApplyMsg),
+		applyCh:      make(chan raftapi.ApplyMsg, 1000),
 		stopCh:       make(chan struct{}),
 		sm:           sm,
 		lastApplied:  0,
@@ -81,6 +81,7 @@ func MakeRSM(servers []*labrpc.ClientEnd, me int, persister *tester.Persister, m
 		sm.Restore(persister.ReadSnapshot())
 	}
 	go rsm.reader()
+	go rsm.snapshot()
 	return rsm
 }
 
@@ -92,13 +93,34 @@ func (rsm *RSM) NextId() int {
 	return int(rand.Int63())
 }
 
+func (rsm *RSM) snapshot() {
+	for true {
+		if rsm.maxraftstate != -1 && rsm.rf.PersistBytes() > rsm.maxraftstate {
+			rsm.mu.Lock()
+			snapshot := rsm.sm.Snapshot()
+			lastApplied := rsm.lastApplied
+			rsm.mu.Unlock()
+			rsm.rf.Snapshot(lastApplied, snapshot)
+		}
+		time.Sleep(time.Duration(10) * time.Millisecond)
+	}
+}
+
 func (rsm *RSM) reader() {
 	for msg := range rsm.applyCh {
 		if msg.SnapshotValid {
-			rsm.sm.Restore(msg.Snapshot)
-			rsm.mu.Lock()
-			rsm.lastApplied = msg.SnapshotIndex
-			rsm.mu.Unlock()
+			// Only apply snapshot if it's newer than what we've applied
+			if msg.SnapshotIndex > rsm.lastApplied {
+				rsm.mu.Lock()
+				rsm.sm.Restore(msg.Snapshot)
+				rsm.lastApplied = msg.SnapshotIndex
+				rsm.mu.Unlock()
+			}
+			continue
+		}
+
+		// Skip entries that are already covered by a snapshot or already applied
+		if msg.CommandIndex <= rsm.lastApplied {
 			continue
 		}
 		cmd := msg.Command.(Op)
@@ -117,10 +139,6 @@ func (rsm *RSM) reader() {
 		rsm.mu.Lock()
 		rsm.lastApplied = msg.CommandIndex
 		rsm.mu.Unlock()
-		if rsm.maxraftstate != -1 && rsm.rf.PersistBytes() > rsm.maxraftstate {
-			snapshot := rsm.sm.Snapshot()
-			rsm.rf.Snapshot(rsm.lastApplied, snapshot)
-		}
 	}
 	// fmt.Printf("me = %d: Applych closed, return\n", rsm.me)
 	close(rsm.stopCh)

@@ -63,8 +63,9 @@ type Raft struct {
 	lastApplied int
 
 	// Volatile state on leaders
-	nextIndex  []int
-	matchIndex []int
+	nextIndex   []int
+	matchIndex  []int
+	replicateCh chan struct{} // signal to trigger immediate log replication
 }
 
 // return currentTerm and whether this server
@@ -145,6 +146,11 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 	isLeader = true
 	rf.log = append(rf.log, Log{command, term})
 	rf.persist()
+	// signal to replicate immediately
+	select {
+	case rf.replicateCh <- struct{}{}:
+	default:
+	}
 	return index, term, isLeader
 }
 
@@ -240,7 +246,7 @@ func (rf *Raft) commitLog() {
 		}
 		rf.mu.Unlock()
 
-		time.Sleep(time.Duration(10) * time.Millisecond)
+		time.Sleep(time.Duration(5) * time.Millisecond)
 	}
 }
 
@@ -329,6 +335,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	rf.snapshot = nil
 	rf.offset = 0
 	rf.lastIncludedTerm = 0
+	rf.replicateCh = make(chan struct{}, 1)
 
 	// initialize from state persisted before a crash
 	rf.readPersist(persister.ReadRaftState())

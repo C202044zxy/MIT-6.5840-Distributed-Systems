@@ -236,9 +236,11 @@ func StartKVServer(servers []*labrpc.ClientEnd, gid tester.Tgid, me int, persist
 
 	kv := &KVServer{me: me}
 
-	kv.rsm = rsm.MakeRSM(servers, me, persister, maxraftstate, kv)
+	// Initialize maps BEFORE MakeRSM, since Restore() may populate them
 	kv.mp = make(map[string]ValueVersion)
 	kv.sessions = make(map[int64]*ClientSession)
+
+	kv.rsm = rsm.MakeRSM(servers, me, persister, maxraftstate, kv)
 	// You may need initialization code here.
 	return []tester.IService{kv, kv.rsm.Raft()}
 }
