@@ -78,6 +78,7 @@ func MakeRSM(servers []*labrpc.ClientEnd, me int, persister *tester.Persister, m
 		rsm.rf = raft.Make(servers, me, persister, rsm.applyCh)
 	}
 	if persister.SnapshotSize() > 0 {
+		// TODO: restore the rsm.lastApplied here
 		sm.Restore(persister.ReadSnapshot())
 	}
 	go rsm.reader()

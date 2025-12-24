@@ -1,6 +1,10 @@
 package shardgrp
 
 import (
+	"bytes"
+	"fmt"
+	"log"
+	"sync"
 	"sync/atomic"
 
 	"6.5840/kvraft1/rsm"
@@ -11,51 +15,195 @@ import (
 	tester "6.5840/tester1"
 )
 
+type ValueVersion struct {
+	Value   string
+	Version rpc.Tversion
+}
+
+type ClientSession struct {
+	LastSeqNum int64
+	LastReply  any
+}
+
 type KVServer struct {
 	me   int
 	dead int32 // set by Kill()
 	rsm  *rsm.RSM
 	gid  tester.Tgid
 
-	// Your code here
+	// Your definitions here.
+	mu       sync.Mutex
+	mp       map[string]ValueVersion
+	sessions map[int64]*ClientSession // Track last request per client
 }
 
-func (kv *KVServer) DoOp(req any) any {
-	// Your code here
-	return nil
+// Get returns the value and version for args.Key, if args.Key
+// exists. Otherwise, Get returns ErrNoKey.
+func (kv *KVServer) get_impl(args *rpc.GetArgs, reply *rpc.GetReply) {
+	// Your code here.
+	kv.mu.Lock()
+	defer kv.mu.Unlock()
+
+	// Check if this is a duplicate request
+	if session, ok := kv.sessions[args.ClientId]; ok {
+		if args.SeqNum == session.LastSeqNum {
+			// Duplicate request - return cached result
+			*reply = session.LastReply.(rpc.GetReply)
+			return
+		} else if args.SeqNum < session.LastSeqNum {
+			// Old request - should not happen, but handle gracefully
+			pair, exists := kv.mp[args.Key]
+			if exists {
+				reply.Value = pair.Value
+				reply.Version = pair.Version
+				reply.Err = rpc.OK
+			} else {
+				reply.Err = rpc.ErrNoKey
+			}
+			return
+		}
+	}
+
+	pair, ok := kv.mp[args.Key]
+	if ok {
+		reply.Value = pair.Value
+		reply.Version = pair.Version
+		reply.Err = rpc.OK
+	} else {
+		reply.Err = rpc.ErrNoKey
+	}
+
+	// Update session with new result
+	kv.sessions[args.ClientId] = &ClientSession{
+		LastSeqNum: args.SeqNum,
+		LastReply:  *reply,
+	}
+}
+
+// Update the value for a key if args.Version matches the version of
+// the key on the server. If versions don't match, return ErrVersion.
+// If the key doesn't exist, Put installs the value if the
+// args.Version is 0, and returns ErrNoKey otherwise.
+func (kv *KVServer) put_impl(args *rpc.PutArgs, reply *rpc.PutReply) {
+	// Your code here.
+	kv.mu.Lock()
+	defer kv.mu.Unlock()
+
+	// Check if this is a duplicate request
+	if session, ok := kv.sessions[args.ClientId]; ok {
+		if args.SeqNum == session.LastSeqNum {
+			// Duplicate request - return cached result
+			*reply = session.LastReply.(rpc.PutReply)
+			return
+		} else if args.SeqNum < session.LastSeqNum {
+			// Old request - should not happen, but return OK to be safe
+			reply.Err = rpc.OK
+			return
+		}
+	}
+
+	pair, ok := kv.mp[args.Key]
+	if ok {
+		// the key exist
+		if pair.Version == args.Version {
+			kv.mp[args.Key] = ValueVersion{args.Value, args.Version + 1}
+			reply.Err = rpc.OK
+		} else {
+			reply.Err = rpc.ErrVersion
+		}
+	} else {
+		// the key not exist
+		if args.Version == 0 {
+			// create a new key
+			kv.mp[args.Key] = ValueVersion{args.Value, 1}
+			reply.Err = rpc.OK
+		} else {
+			reply.Err = rpc.ErrNoKey
+		}
+	}
+
+	// Update session with new result
+	kv.sessions[args.ClientId] = &ClientSession{
+		LastSeqNum: args.SeqNum,
+		LastReply:  *reply,
+	}
+	// fmt.Printf("me = %v, args = %v, map = %v\n", kv.me, args, kv.mp)
+}
+
+// To type-cast req to the right type, take a look at Go's type switches or type
+// assertions below:
+//
+// https://go.dev/tour/methods/16
+// https://go.dev/tour/methods/15
+func (kv *KVServer) DoOp(raw_req any) any {
+	// detect req type and dispatch to req implementations
+	switch req := raw_req.(type) {
+	case rpc.GetArgs:
+		reply := rpc.GetReply{}
+		kv.get_impl(&req, &reply)
+		return reply
+	case rpc.PutArgs:
+		reply := rpc.PutReply{}
+		kv.put_impl(&req, &reply)
+		return reply
+	default:
+		fmt.Printf("DoOp: unknown req type = %T\n", raw_req)
+		return nil
+	}
 }
 
 func (kv *KVServer) Snapshot() []byte {
 	// Your code here
-	return nil
+	kv.mu.Lock()
+	defer kv.mu.Unlock()
+
+	w := new(bytes.Buffer)
+	e := labgob.NewEncoder(w)
+	e.Encode(kv.mp)
+	e.Encode(kv.sessions)
+	return w.Bytes()
 }
 
 func (kv *KVServer) Restore(data []byte) {
 	// Your code here
+	if len(data) < 1 {
+		return
+	}
+	kv.mu.Lock()
+	defer kv.mu.Unlock()
+
+	r := bytes.NewBuffer(data)
+	d := labgob.NewDecoder(r)
+	if d.Decode(&kv.mp) != nil {
+		log.Fatalf("%v couldn't decode kv.mp", kv.me)
+	}
+	if d.Decode(&kv.sessions) != nil {
+		log.Fatalf("%v couldn't decode kv.sessions", kv.me)
+	}
 }
 
 func (kv *KVServer) Get(args *rpc.GetArgs, reply *rpc.GetReply) {
-	// Your code here
+	// Your code here. Use kv.rsm.Submit() to submit args
+	// You can use go's type casts to turn the any return value
+	// of Submit() into a GetReply: rep.(rpc.GetReply)
+	err, rep := kv.rsm.Submit(*args)
+	if err != rpc.OK {
+		reply.Err = err
+		return
+	}
+	*reply = rep.(rpc.GetReply)
 }
 
 func (kv *KVServer) Put(args *rpc.PutArgs, reply *rpc.PutReply) {
-	// Your code here
-}
-
-// Freeze the specified shard (i.e., reject future Get/Puts for this
-// shard) and return the key/values stored in that shard.
-func (kv *KVServer) FreezeShard(args *shardrpc.FreezeShardArgs, reply *shardrpc.FreezeShardReply) {
-	// Your code here
-}
-
-// Install the supplied state for the specified shard.
-func (kv *KVServer) InstallShard(args *shardrpc.InstallShardArgs, reply *shardrpc.InstallShardReply) {
-	// Your code here
-}
-
-// Delete the specified shard.
-func (kv *KVServer) DeleteShard(args *shardrpc.DeleteShardArgs, reply *shardrpc.DeleteShardReply) {
-	// Your code here
+	// Your code here. Use kv.rsm.Submit() to submit args
+	// You can use go's type casts to turn the any return value
+	// of Submit() into a PutReply: rep.(rpc.PutReply)
+	err, rep := kv.rsm.Submit(*args)
+	if err != rpc.OK {
+		reply.Err = err
+		return
+	}
+	*reply = rep.(rpc.PutReply)
 }
 
 // the tester calls Kill() when a KVServer instance won't
@@ -89,8 +237,13 @@ func StartServerShardGrp(servers []*labrpc.ClientEnd, gid tester.Tgid, me int, p
 	labgob.Register(shardrpc.InstallShardArgs{})
 	labgob.Register(shardrpc.DeleteShardArgs{})
 	labgob.Register(rsm.Op{})
+	labgob.Register(rpc.PutReply{})
+	labgob.Register(rpc.GetReply{})
+	labgob.Register(ClientSession{})
 
 	kv := &KVServer{gid: gid, me: me}
+	kv.mp = make(map[string]ValueVersion)
+	kv.sessions = make(map[int64]*ClientSession)
 	kv.rsm = rsm.MakeRSM(servers, me, persister, maxraftstate, kv)
 
 	// Your code here
