@@ -5,12 +5,15 @@ package shardctrler
 //
 
 import (
+	"fmt"
 	"log"
+	"time"
 
 	kvsrv "6.5840/kvsrv1"
 	"6.5840/kvsrv1/rpc"
 	kvtest "6.5840/kvtest1"
 	"6.5840/shardkv1/shardcfg"
+	"6.5840/shardkv1/shardgrp"
 	tester "6.5840/tester1"
 )
 
@@ -46,7 +49,13 @@ func (sck *ShardCtrler) InitController() {
 // lists shardgrp shardcfg.Gid1 for all shards.
 func (sck *ShardCtrler) InitConfig(cfg *shardcfg.ShardConfig) {
 	// Your code here
-	sck.IKVClerk.Put("Config", cfg.String(), 0)
+	for {
+		err := sck.IKVClerk.Put("Config", cfg.String(), 0)
+		if err == rpc.OK || err == rpc.ErrVersion {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 }
 
 // Called by the tester to ask the controller to change the
@@ -55,14 +64,48 @@ func (sck *ShardCtrler) InitConfig(cfg *shardcfg.ShardConfig) {
 // controller.
 func (sck *ShardCtrler) ChangeConfigTo(new *shardcfg.ShardConfig) {
 	// Your code here.
+	old := sck.Query()
+	// fmt.Println(old.String())
+	// fmt.Println(new.String())
+	for shard := range old.Shards {
+		oldGid := old.Shards[shard]
+		newGid := new.Shards[shard]
+		if oldGid != newGid && oldGid != 0 && newGid != 0 {
+			srcClerk := shardgrp.MakeClerk(sck.clnt, old.Groups[oldGid])
+			dstClerk := shardgrp.MakeClerk(sck.clnt, new.Groups[newGid])
+			state, err := srcClerk.FreezeShard(shardcfg.Tshid(shard), old.Num)
+			if err != rpc.OK {
+				log.Fatalf("FreezeShard failed")
+			}
+			err = dstClerk.InstallShard(shardcfg.Tshid(shard), state, old.Num)
+			if err != rpc.OK {
+				log.Fatalf("InstallShard failed")
+			}
+			err = srcClerk.DeleteShard(shardcfg.Tshid(shard), old.Num)
+			if err != rpc.OK {
+				log.Fatalf("DeleteShard failed")
+			}
+		}
+	}
+	new.Num = old.Num + 1
+	for {
+		err := sck.IKVClerk.Put("Config", new.String(), rpc.Tversion(old.Num))
+		if err == rpc.OK || err == rpc.ErrVersion {
+			break
+		}
+		fmt.Println("Put Config err")
+		time.Sleep(10 * time.Millisecond)
+	}
 }
 
 // Return the current configuration
 func (sck *ShardCtrler) Query() *shardcfg.ShardConfig {
 	// Your code here.
-	cfg_str, _, err := sck.IKVClerk.Get("Config")
-	if err != rpc.OK {
-		log.Fatalf("Error when reading shard configuration")
+	for {
+		cfg_str, _, err := sck.IKVClerk.Get("Config")
+		if err == rpc.OK {
+			return shardcfg.FromString(cfg_str)
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
-	return shardcfg.FromString(cfg_str)
 }

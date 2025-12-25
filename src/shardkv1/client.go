@@ -9,6 +9,9 @@ package shardkv
 //
 
 import (
+	"fmt"
+	"time"
+
 	"6.5840/kvsrv1/rpc"
 	kvtest "6.5840/kvtest1"
 	"6.5840/shardkv1/shardcfg"
@@ -43,27 +46,41 @@ func MakeClerk(clnt *tester.Clnt, sck *shardctrler.ShardCtrler) kvtest.IKVClerk 
 // calling shardgrp.MakeClerk(ck.clnt, servers).
 func (ck *Clerk) Get(key string) (string, rpc.Tversion, rpc.Err) {
 	// You will have to modify this function.
-	shard := shardcfg.Key2Shard(key)
-	cfg := ck.sck.Query()
-	gid := cfg.Shards[shard]
-	grp, ok := ck.grps[gid]
-	if !ok {
-		ck.grps[gid] = shardgrp.MakeClerk(ck.clnt, cfg.Groups[gid])
-		grp = ck.grps[gid]
+	for {
+		shard := shardcfg.Key2Shard(key)
+		cfg := ck.sck.Query()
+		gid := cfg.Shards[shard]
+		grp, ok := ck.grps[gid]
+		if !ok {
+			ck.grps[gid] = shardgrp.MakeClerk(ck.clnt, cfg.Groups[gid])
+			grp = ck.grps[gid]
+		}
+		value, version, err := grp.Get(key)
+		if err != rpc.ErrWrongGroup {
+			return value, version, err
+		}
+		fmt.Println(err)
+		time.Sleep(time.Millisecond * 10)
 	}
-	return grp.Get(key)
 }
 
 // Put a key to a shard group.
 func (ck *Clerk) Put(key string, value string, version rpc.Tversion) rpc.Err {
 	// You will have to modify this function.
-	shard := shardcfg.Key2Shard(key)
-	cfg := ck.sck.Query()
-	gid := cfg.Shards[shard]
-	grp, ok := ck.grps[gid]
-	if !ok {
-		ck.grps[gid] = shardgrp.MakeClerk(ck.clnt, cfg.Groups[gid])
-		grp = ck.grps[gid]
+	for {
+		shard := shardcfg.Key2Shard(key)
+		cfg := ck.sck.Query()
+		gid := cfg.Shards[shard]
+		grp, ok := ck.grps[gid]
+		if !ok {
+			ck.grps[gid] = shardgrp.MakeClerk(ck.clnt, cfg.Groups[gid])
+			grp = ck.grps[gid]
+		}
+		err := grp.Put(key, value, version)
+		if err != rpc.ErrWrongGroup {
+			return err
+		}
+		fmt.Println(err)
+		time.Sleep(time.Millisecond * 10)
 	}
-	return grp.Put(key, value, version)
 }

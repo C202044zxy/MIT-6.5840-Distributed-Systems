@@ -2,14 +2,15 @@ package shardkv
 
 import (
 	//"log"
+	"fmt"
 	"testing"
 	"time"
 
 	"6.5840/kvsrv1/rpc"
-	"6.5840/kvtest1"
+	kvtest "6.5840/kvtest1"
 	"6.5840/shardkv1/shardcfg"
 	"6.5840/shardkv1/shardctrler"
-	"6.5840/tester1"
+	tester "6.5840/tester1"
 )
 
 const (
@@ -446,12 +447,15 @@ func concurrentClerk(t *testing.T, nclnt int, reliable bool, part string) {
 	if ok := ts.joinGroups(sck, grps); !ok {
 		t.Fatalf("concurrentClerk: joinGroups failed")
 	}
+	fmt.Println("succ")
 
 	if ok := ts.leaveGroups(sck, grps); !ok {
 		t.Fatalf("concurrentClerk: leaveGroups failed")
 	}
+	fmt.Println("succ")
 
 	<-ch
+	fmt.Println("succ")
 
 	ts.CheckPorcupine()
 }
