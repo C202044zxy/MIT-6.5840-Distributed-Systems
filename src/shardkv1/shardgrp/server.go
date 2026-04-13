@@ -184,6 +184,7 @@ func (kv *KVServer) installShardImpl(args *shardrpc.InstallShardArgs, reply *sha
 	}
 	kv.shardNums[args.Shard] = args.Num
 	kv.ownedShards[args.Shard] = true
+	delete(kv.frozenShards, args.Shard)
 	var shardMap map[string]ValueVersion
 	if err := json.Unmarshal(args.State, &shardMap); err != nil {
 		log.Fatalf("Unmarshal err %v", err)
