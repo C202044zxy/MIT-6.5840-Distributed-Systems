@@ -42,13 +42,19 @@ func (ck *Clerk) Get(key string) (string, rpc.Tversion, rpc.Err) {
 	seqNum := ck.seqNum.Add(1)
 	leader_id := ck.LoadLeaderId()
 	defer ck.StoreLeaderId(leader_id)
+	failCount := 0
 	for {
 		args := rpc.GetArgs{Key: key, ClientId: ck.clientId, SeqNum: seqNum}
 		reply := rpc.GetReply{}
 		ok := ck.clnt.Call(ck.servers[leader_id], "KVServer.Get", &args, &reply)
 		if !ok || reply.Err == rpc.ErrWrongLeader {
-			// keep trying if rpc fails
+			failCount++
 			leader_id = (leader_id + 1) % len(ck.servers)
+			if failCount >= len(ck.servers) {
+				// All servers unreachable; signal outer loop to re-query config
+				failCount = 0
+				return "", 0, rpc.ErrWrongGroup
+			}
 			time.Sleep(10 * time.Millisecond)
 			continue
 		}
@@ -62,13 +68,21 @@ func (ck *Clerk) Put(key string, value string, version rpc.Tversion) rpc.Err {
 	firstTry := true
 	leader_id := ck.LoadLeaderId()
 	defer ck.StoreLeaderId(leader_id)
+	failCount := 0
 	for {
 		args := rpc.PutArgs{Key: key, Value: value, Version: version, ClientId: ck.clientId, SeqNum: seqNum}
 		reply := rpc.PutReply{}
 		ok := ck.clnt.Call(ck.servers[leader_id], "KVServer.Put", &args, &reply)
 		if !ok || reply.Err == rpc.ErrWrongLeader {
 			firstTry = false
+			failCount++
 			leader_id = (leader_id + 1) % len(ck.servers)
+			if failCount >= len(ck.servers) {
+				// All servers unreachable; signal outer loop to re-query config.
+				// Return ErrMaybe since the put may have been applied (firstTry=false).
+				failCount = 0
+				return rpc.ErrWrongGroup
+			}
 			time.Sleep(10 * time.Millisecond)
 			continue
 		}
