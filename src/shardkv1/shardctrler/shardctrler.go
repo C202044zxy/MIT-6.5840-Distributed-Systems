@@ -5,7 +5,6 @@ package shardctrler
 //
 
 import (
-	"log"
 	"reflect"
 	"time"
 
@@ -63,16 +62,19 @@ func configKVEqual(a, b string) bool {
 
 // putConfigKey writes value with CAS expectVer; handles ErrMaybe/ErrVersion when the
 // write may have succeeded but the clerk could not confirm (kvsrv1 clerk semantics).
-func (sck *ShardCtrler) putConfigKey(key, want string, expectVer rpc.Tversion) {
+func (sck *ShardCtrler) putConfigKey(key, want string, expectVer rpc.Tversion) bool {
 	for {
 		err := sck.IKVClerk.Put(key, want, expectVer)
 		if err == rpc.OK {
-			return
+			return true
 		}
 		if err == rpc.ErrVersion || err == rpc.ErrMaybe {
 			got, _, e := sck.IKVClerk.Get(key)
 			if e == rpc.OK && configKVEqual(want, got) {
-				return
+				return true
+			}
+			if e == rpc.OK {
+				return false
 			}
 		}
 		time.Sleep(10 * time.Millisecond)
@@ -108,46 +110,31 @@ func (sck *ShardCtrler) ChangeConfigTo(new *shardcfg.ShardConfig) {
 	// first write the new config
 	new.Num = old.Num + 1
 	newStr := new.String()
-	sck.putConfigKey("NewConfig", newStr, rpc.Tversion(old.Num))
+	ok := sck.putConfigKey("NewConfig", newStr, rpc.Tversion(old.Num))
+	if !ok {
+		return
+	}
 
-	type piped struct {
-		shard shardcfg.Tshid
-		state []byte
-		og    tester.Tgid
-		ng    tester.Tgid
-	}
-	var jobs []shardcfg.Tshid
-	for si := 0; si < shardcfg.NShards; si++ {
-		shard := shardcfg.Tshid(si)
-		og, ng := old.Shards[shard], new.Shards[shard]
-		if og != ng && og != 0 && ng != 0 {
-			jobs = append(jobs, shard)
-		}
-	}
-	if len(jobs) > 0 {
-		ch := make(chan piped, 1)
-		go func() {
-			for _, shard := range jobs {
-				og := old.Shards[shard]
-				srcClerk := shardgrp.MakeClerk(sck.clnt, old.Groups[og])
-				state, err := srcClerk.FreezeShard(shard, old.Num)
+	for shard := range old.Shards {
+		oldGid := old.Shards[shard]
+		newGid := new.Shards[shard]
+		if oldGid != newGid && oldGid != 0 && newGid != 0 {
+			srcClerk := shardgrp.MakeClerk(sck.clnt, old.Groups[oldGid])
+			dstClerk := shardgrp.MakeClerk(sck.clnt, new.Groups[newGid])
+			for {
+				state, err := srcClerk.FreezeShard(shardcfg.Tshid(shard), old.Num)
 				if err != rpc.OK {
-					log.Fatalf("FreezeShard failed")
+					continue
 				}
-				ch <- piped{shard: shard, state: state, og: og, ng: new.Shards[shard]}
-			}
-			close(ch)
-		}()
-		for p := range ch {
-			dstClerk := shardgrp.MakeClerk(sck.clnt, new.Groups[p.ng])
-			srcClerk := shardgrp.MakeClerk(sck.clnt, old.Groups[p.og])
-			err := dstClerk.InstallShard(p.shard, p.state, old.Num)
-			if err != rpc.OK {
-				log.Fatalf("InstallShard failed")
-			}
-			err = srcClerk.DeleteShard(p.shard, old.Num)
-			if err != rpc.OK {
-				log.Fatalf("DeleteShard failed")
+				err = dstClerk.InstallShard(shardcfg.Tshid(shard), state, old.Num)
+				if err != rpc.OK {
+					continue
+				}
+				err = srcClerk.DeleteShard(shardcfg.Tshid(shard), old.Num)
+				if err != rpc.OK {
+					continue
+				}
+				break
 			}
 		}
 	}
