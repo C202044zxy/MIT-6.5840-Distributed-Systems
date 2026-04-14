@@ -5,8 +5,8 @@ package shardctrler
 //
 
 import (
-	"fmt"
 	"log"
+	"reflect"
 	"time"
 
 	kvsrv "6.5840/kvsrv1"
@@ -40,6 +40,43 @@ func MakeShardCtrler(clnt *tester.Clnt) *ShardCtrler {
 // controller. In part A, this method doesn't need to do anything. In
 // B and C, this method implements recovery.
 func (sck *ShardCtrler) InitController() {
+	old := sck.Query()
+	newc := sck.QueryNew()
+	if newc.Num > old.Num {
+		sck.ChangeConfigTo(newc.Copy())
+	}
+}
+
+func configKVEqual(a, b string) bool {
+	if a == b {
+		return true
+	}
+	ca, cb := shardcfg.FromString(a), shardcfg.FromString(b)
+	if ca.Num != cb.Num {
+		return false
+	}
+	if ca.Shards != cb.Shards {
+		return false
+	}
+	return reflect.DeepEqual(ca.Groups, cb.Groups)
+}
+
+// putConfigKey writes value with CAS expectVer; handles ErrMaybe/ErrVersion when the
+// write may have succeeded but the clerk could not confirm (kvsrv1 clerk semantics).
+func (sck *ShardCtrler) putConfigKey(key, want string, expectVer rpc.Tversion) {
+	for {
+		err := sck.IKVClerk.Put(key, want, expectVer)
+		if err == rpc.OK {
+			return
+		}
+		if err == rpc.ErrVersion || err == rpc.ErrMaybe {
+			got, _, e := sck.IKVClerk.Get(key)
+			if e == rpc.OK && configKVEqual(want, got) {
+				return
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 }
 
 // Called once by the tester to supply the first configuration.  You
@@ -49,12 +86,15 @@ func (sck *ShardCtrler) InitController() {
 // lists shardgrp shardcfg.Gid1 for all shards.
 func (sck *ShardCtrler) InitConfig(cfg *shardcfg.ShardConfig) {
 	// Your code here
-	for {
-		err := sck.IKVClerk.Put("Config", cfg.String(), 0)
-		if err == rpc.OK || err == rpc.ErrVersion {
-			break
-		}
-		time.Sleep(10 * time.Millisecond)
+	s := cfg.String()
+	sck.putConfigKey("Config", s, 0)
+	sck.putConfigKey("NewConfig", s, 0)
+
+	// checks whether there is a uncommitted configuration
+	old := sck.Query()
+	new := sck.QueryNew()
+	if new.Num > old.Num {
+		sck.ChangeConfigTo(new.Copy())
 	}
 }
 
@@ -65,37 +105,55 @@ func (sck *ShardCtrler) InitConfig(cfg *shardcfg.ShardConfig) {
 func (sck *ShardCtrler) ChangeConfigTo(new *shardcfg.ShardConfig) {
 	// Your code here.
 	old := sck.Query()
-	// fmt.Println(old.String())
-	// fmt.Println(new.String())
-	for shard := range old.Shards {
-		oldGid := old.Shards[shard]
-		newGid := new.Shards[shard]
-		if oldGid != newGid && oldGid != 0 && newGid != 0 {
-			srcClerk := shardgrp.MakeClerk(sck.clnt, old.Groups[oldGid])
-			dstClerk := shardgrp.MakeClerk(sck.clnt, new.Groups[newGid])
-			state, err := srcClerk.FreezeShard(shardcfg.Tshid(shard), old.Num)
-			if err != rpc.OK {
-				log.Fatalf("FreezeShard failed")
+	// first write the new config
+	new.Num = old.Num + 1
+	newStr := new.String()
+	sck.putConfigKey("NewConfig", newStr, rpc.Tversion(old.Num))
+
+	type piped struct {
+		shard shardcfg.Tshid
+		state []byte
+		og    tester.Tgid
+		ng    tester.Tgid
+	}
+	var jobs []shardcfg.Tshid
+	for si := 0; si < shardcfg.NShards; si++ {
+		shard := shardcfg.Tshid(si)
+		og, ng := old.Shards[shard], new.Shards[shard]
+		if og != ng && og != 0 && ng != 0 {
+			jobs = append(jobs, shard)
+		}
+	}
+	if len(jobs) > 0 {
+		ch := make(chan piped, 1)
+		go func() {
+			for _, shard := range jobs {
+				og := old.Shards[shard]
+				srcClerk := shardgrp.MakeClerk(sck.clnt, old.Groups[og])
+				state, err := srcClerk.FreezeShard(shard, old.Num)
+				if err != rpc.OK {
+					log.Fatalf("FreezeShard failed")
+				}
+				ch <- piped{shard: shard, state: state, og: og, ng: new.Shards[shard]}
 			}
-			err = dstClerk.InstallShard(shardcfg.Tshid(shard), state, old.Num)
+			close(ch)
+		}()
+		for p := range ch {
+			dstClerk := shardgrp.MakeClerk(sck.clnt, new.Groups[p.ng])
+			srcClerk := shardgrp.MakeClerk(sck.clnt, old.Groups[p.og])
+			err := dstClerk.InstallShard(p.shard, p.state, old.Num)
 			if err != rpc.OK {
 				log.Fatalf("InstallShard failed")
 			}
-			err = srcClerk.DeleteShard(shardcfg.Tshid(shard), old.Num)
+			err = srcClerk.DeleteShard(p.shard, old.Num)
 			if err != rpc.OK {
 				log.Fatalf("DeleteShard failed")
 			}
 		}
 	}
-	new.Num = old.Num + 1
-	for {
-		err := sck.IKVClerk.Put("Config", new.String(), rpc.Tversion(old.Num))
-		if err == rpc.OK || err == rpc.ErrVersion {
-			break
-		}
-		fmt.Println("Put Config err")
-		time.Sleep(10 * time.Millisecond)
-	}
+
+	// write it to original config. commit the whole process.
+	sck.putConfigKey("Config", newStr, rpc.Tversion(old.Num))
 }
 
 // Return the current configuration
@@ -103,6 +161,17 @@ func (sck *ShardCtrler) Query() *shardcfg.ShardConfig {
 	// Your code here.
 	for {
 		cfg_str, _, err := sck.IKVClerk.Get("Config")
+		if err == rpc.OK {
+			return shardcfg.FromString(cfg_str)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func (sck *ShardCtrler) QueryNew() *shardcfg.ShardConfig {
+	// Your code here.
+	for {
+		cfg_str, _, err := sck.IKVClerk.Get("NewConfig")
 		if err == rpc.OK {
 			return shardcfg.FromString(cfg_str)
 		}
