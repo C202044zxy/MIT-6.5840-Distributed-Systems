@@ -2,8 +2,6 @@ package raft
 
 import (
 	"time"
-
-	"6.5840/raftapi"
 )
 
 type InstallSnapshotArgs struct {
@@ -81,8 +79,17 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	if term > rf.currentTerm {
 		rf.convert2Follower(term)
 	}
-	if data == nil || lastIncludedIndex+1 <= rf.offset {
-		// don't move backward
+	if data == nil {
+		return
+	}
+	if lastIncludedIndex <= rf.commitIndex {
+		// We already have everything this snapshot covers, either as
+		// committed log entries or an at-least-as-recent snapshot.
+		// Installing it would rewind lastApplied (and thus replay a
+		// snapshot below entries already delivered up on applyCh, which
+		// the service rejects as "apply out of order"). Ack so the leader
+		// can still advance its view of our match index.
+		reply.Succ = true
 		return
 	}
 	if lastIncludedIndex+1 >= rf.offset+len(rf.log) ||
@@ -95,15 +102,15 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	rf.offset = lastIncludedIndex + 1
 	rf.lastIncludedTerm = lastIncludedTerm
 	rf.snapshot = data
-	msg := raftapi.ApplyMsg{
-		SnapshotValid: true,
-		Snapshot:      data,
-		SnapshotTerm:  lastIncludedTerm,
-		SnapshotIndex: lastIncludedIndex,
-	}
 	rf.lastApplied = max(rf.lastApplied, lastIncludedIndex)
 	rf.commitIndex = max(rf.commitIndex, lastIncludedIndex)
-	rf.applyCh <- msg
+	// Hand the snapshot to the applier goroutine instead of sending on
+	// applyCh here: sending under rf.mu would block while the service's
+	// applier waits for rf.mu in Snapshot(), deadlocking both.
+	rf.pendingSnapshot = data
+	rf.pendingSnapshotIndex = lastIncludedIndex
+	rf.pendingSnapshotTerm = lastIncludedTerm
+	rf.hasPendingSnapshot = true
 	rf.persist()
 	reply.Succ = true
 	DPrintf("Svr %d Install snapshot succ, lastIncludedIndex = %d", rf.me, lastIncludedIndex)

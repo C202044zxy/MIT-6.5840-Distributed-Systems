@@ -66,6 +66,15 @@ type Raft struct {
 	nextIndex   []int
 	matchIndex  []int
 	replicateCh chan struct{} // signal to trigger immediate log replication
+
+	// 3D: snapshot to be delivered up on applyCh by the single applier
+	// goroutine. InstallSnapshot must NOT send on applyCh itself, or it
+	// would block on the channel while holding rf.mu and deadlock against
+	// the service's applier (which calls Snapshot(), needing rf.mu).
+	pendingSnapshot      []byte
+	pendingSnapshotIndex int
+	pendingSnapshotTerm  int
+	hasPendingSnapshot   bool
 }
 
 // return currentTerm and whether this server
@@ -166,9 +175,9 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 func (rf *Raft) Kill() {
 	atomic.StoreInt32(&rf.dead, 1)
 	// Your code here, if desired.
-	rf.mu.Lock()
-	defer rf.mu.Unlock()
-	close(rf.applyCh)
+	// NOTE: applyCh is closed by applyLog (its sole sender) when it
+	// observes killed(), not here. Closing it here would race with
+	// applyLog's unlocked sends and panic with "send on closed channel".
 }
 
 func (rf *Raft) killed() bool {
@@ -288,23 +297,48 @@ func (rf *Raft) applyLog() {
 	for !rf.killed() {
 
 		rf.mu.Lock()
+		// A snapshot installed from the leader takes priority: deliver it
+		// before any buffered command entries (lastApplied has already been
+		// advanced past it by InstallSnapshot, so there are none below it).
+		if rf.hasPendingSnapshot {
+			msg := raftapi.ApplyMsg{
+				SnapshotValid: true,
+				Snapshot:      rf.pendingSnapshot,
+				SnapshotTerm:  rf.pendingSnapshotTerm,
+				SnapshotIndex: rf.pendingSnapshotIndex,
+			}
+			rf.hasPendingSnapshot = false
+			rf.pendingSnapshot = nil
+			rf.mu.Unlock()
+			// Send WITHOUT holding rf.mu so the service's applier can call
+			// back into Raft (e.g. Snapshot()) without deadlocking.
+			rf.applyCh <- msg
+			continue
+		}
 		// Drain all currently committed entries in one pass; applying only a
 		// single entry per 10ms tick serializes apply at 100 entries/sec,
 		// which stalls commit-latency badly after a restart that must replay
-		// a long log.
+		// a long log. Collect under the lock, then release it before sending
+		// on applyCh (see deadlock note above).
+		var msgs []raftapi.ApplyMsg
 		for rf.commitIndex > rf.lastApplied && rf.lastApplied+1 >= rf.offset && rf.lastApplied+1 < len(rf.log)+rf.offset {
 			DPrintf("Svr %d Apply log %d into the channel", rf.me, rf.lastApplied+1)
-			msg := raftapi.ApplyMsg{
+			msgs = append(msgs, raftapi.ApplyMsg{
 				CommandValid: true,
 				Command:      rf.log[rf.lastApplied+1-rf.offset].Command,
 				CommandIndex: rf.lastApplied + 1,
-			}
+			})
 			rf.lastApplied++
-			rf.applyCh <- msg
 		}
 		rf.mu.Unlock()
+		for _, msg := range msgs {
+			rf.applyCh <- msg
+		}
 		time.Sleep(time.Duration(10) * time.Millisecond)
 	}
+	// As the sole sender, close applyCh on shutdown so the service's
+	// applier ("for m := range applyCh") terminates instead of leaking.
+	close(rf.applyCh)
 }
 
 // the service or tester wants to create a Raft server. the ports
