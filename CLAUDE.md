@@ -42,6 +42,25 @@ bash test-mr.sh          # full MR correctness + crash tests
 bash test-mr-many.sh 3   # run test-mr.sh N times
 ```
 
+## Change workflow
+
+Once a change is implemented, **tested, and reviewed, commit and push it
+automatically** — the user does not commit/push verified work by hand. Run this
+loop for every change:
+
+1. **Work** — make the change.
+2. **Test** — run the relevant suite(s) with `-race` (see Commands); for flaky
+   distributed tests, run repeatedly (`-count N`). Do not proceed on red.
+3. **Review** — read the diff for correctness before committing.
+4. **Add & commit** — stage the change and commit with a scoped message
+   matching the existing history (`Fix(3C): …`, `Feat(5B): …`), ending with the
+   `Co-Authored-By: Claude …` trailer.
+5. **Push** — push to `main` (this repo commits directly to `main`).
+
+This standing authorization covers changes that pass step 2 cleanly. If tests
+fail, or the change is risky or ambiguous, stop and surface it instead of
+committing.
+
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs a lightweight **build + vet** check on every
