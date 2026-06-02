@@ -42,6 +42,28 @@ bash test-mr.sh          # full MR correctness + crash tests
 bash test-mr-many.sh 3   # run test-mr.sh N times
 ```
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs a lightweight **build + vet** check on every
+push to `main` and on pull requests (Go 1.22, all commands from `src/`). It
+deliberately does **not** run `go test` — the distributed suites are slow and
+intentionally fault-injecting, so they are flaky on shared runners; run them
+locally with `-race` instead.
+
+Scope is filtered to keep the check green on the course-provided tree:
+
+- **Build** excludes `main/` (orphan scaffolding — `diskvd`/`lockc`/`pbc`/`viewd`
+  reference old-lab packages absent from this repo) and `mrapps/` (a set of
+  standalone MapReduce plugins; each redeclares `Map`/`Reduce` and is built
+  individually with `-buildmode=plugin`, so it won't compile as one package).
+- **Vet** additionally skips packages whose provided test/harness files carry
+  pre-existing `go vet` findings we don't own (unkeyed `kvtest1` struct
+  literals, `t.Fatalf` from non-test goroutines): `labrpc`, `tester1`, `kvsrv1`,
+  `kvsrv1/lock`, `kvraft1`, `kvraft1/rsm`, `shardkv1`. Vet still covers `raft1`
+  and the shardkv implementation subpackages. To reproduce CI locally:
+  `go build $(go list ./... | grep -vE '/(main|mrapps)$')` then
+  `go vet $(go list ./... | grep -vE '/(main|mrapps|labrpc|tester1|kvsrv1|kvraft1|shardkv1|lock|rsm)$')`.
+
 ## Architecture
 
 The labs build a layered stack — each lab consumes the layer below as a library.

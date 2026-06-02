@@ -1,0 +1,42 @@
+name: CI
+
+# Lightweight sanity check: compile the lab packages and vet them.
+# Deliberately does NOT run `go test` — the distributed-systems suites are
+# slow and intentionally fault-injecting (partitions, crashes), so they are
+# flaky under shared CI runners. Run tests locally with `-race` instead.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-vet:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        # go.mod lives in src/, so every go command runs from there.
+        working-directory: src
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: src/go.sum
+
+      - name: Build lab packages
+        # Exclude:
+        #   main    - contains orphan scaffolding (diskvd/lockc/pbc/viewd) for
+        #             unrelated old labs whose packages aren't in this repo.
+        #   mrapps  - a collection of standalone MapReduce plugins; each file
+        #             redeclares Map/Reduce and is built individually with
+        #             `-buildmode=plugin`, so it doesn't compile as a package.
+        run: go build $(go list ./... | grep -vE '/(main|mrapps)$')
+
+      - name: Vet lab packages
+        # Additionally exclude packages whose course-provided test/harness
+        # files have pre-existing `go vet` findings we don't own (unkeyed
+        # kvtest1 struct literals, t.Fatalf from non-test goroutines):
+        #   labrpc, tester1, kvsrv1, kvsrv1/lock, kvraft1, kvraft1/rsm, shardkv1
+        run: go vet $(go list ./... | grep -vE '/(main|mrapps|labrpc|tester1|kvsrv1|kvraft1|shardkv1|lock|rsm)$')
