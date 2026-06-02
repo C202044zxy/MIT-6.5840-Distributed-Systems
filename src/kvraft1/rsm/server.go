@@ -70,6 +70,8 @@ func (rs *rsmSrv) DoOp(req any) any {
 
 func (rs *rsmSrv) Snapshot() []byte {
 	//log.Printf("%d: snapshot", rs.me)
+	rs.mu.Lock()
+	defer rs.mu.Unlock()
 	w := new(bytes.Buffer)
 	e := labgob.NewEncoder(w)
 	e.Encode(rs.counter)
@@ -77,6 +79,8 @@ func (rs *rsmSrv) Snapshot() []byte {
 }
 
 func (rs *rsmSrv) Restore(data []byte) {
+	rs.mu.Lock()
+	defer rs.mu.Unlock()
 	r := bytes.NewBuffer(data)
 	d := labgob.NewDecoder(r)
 	if d.Decode(&rs.counter) != nil {

@@ -45,6 +45,12 @@ func (rf *Raft) Snapshot(index int, snapshot []byte) {
 		// not fast-forward
 		return
 	}
+	if index >= rf.offset+len(rf.log) {
+		// The requested index is beyond the entries we currently hold (e.g. a
+		// concurrent InstallSnapshot already discarded/replaced our log). We
+		// can't trim to an index we don't have, so leave state untouched.
+		return
+	}
 	rf.snapshot = snapshot
 	DPrintf("svr %d receives snapshot message", rf.me)
 	if rf.snapshot == nil {
@@ -158,6 +164,12 @@ func (rf *Raft) sendSnapshot() {
 				defer rf.mu.Unlock()
 				if reply.Term > rf.currentTerm {
 					rf.convert2Follower(reply.Term)
+					return
+				}
+				// We may have stepped down (e.g. via a concurrent RPC) while
+				// awaiting this reply; matchIndex is nil'd on step-down, so guard
+				// against a stale write, matching the AppendEntries reply path.
+				if rf.state != Leader || rf.currentTerm != term {
 					return
 				}
 				if reply.Succ {
