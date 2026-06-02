@@ -251,9 +251,9 @@ func (rf *Raft) commitLog() {
 }
 
 func (rf *Raft) ticker() {
-	// election timeout [500, 1000) ms
+	// election timeout [300, 600) ms
 
-	timeout := time.Duration(500+rand.Int63()%500) * time.Millisecond
+	timeout := time.Duration(300+rand.Int63()%300) * time.Millisecond
 	for !rf.killed() {
 
 		// Your code here (3A)
@@ -263,10 +263,15 @@ func (rf *Raft) ticker() {
 		if (rf.state == Follower || rf.state == Candidate) && now.Sub(rf.lastHeartbeat) > timeout {
 			// convert the server to Candidate state
 			rf.currentTerm++
+			// vote for self: a candidate must record its own vote so it
+			// will reject other candidates' RequestVote in the same term,
+			// otherwise two candidates can each grant the other their vote
+			// and both win the same term (split brain).
+			rf.votedFor = rf.me
 			rf.persist()
 			rf.state = Candidate
 			rf.lastHeartbeat = time.Now()
-			timeout = time.Duration(500+rand.Int63()%500) * time.Millisecond
+			timeout = time.Duration(300+rand.Int63()%300) * time.Millisecond
 			// start a new go routine to collect votes
 			go rf.collectVotes()
 		}
@@ -283,8 +288,11 @@ func (rf *Raft) applyLog() {
 	for !rf.killed() {
 
 		rf.mu.Lock()
-		// Ensure we don't apply entries that were already in the snapshot
-		if rf.commitIndex > rf.lastApplied && rf.lastApplied+1 >= rf.offset && rf.lastApplied+1 < len(rf.log)+rf.offset {
+		// Drain all currently committed entries in one pass; applying only a
+		// single entry per 10ms tick serializes apply at 100 entries/sec,
+		// which stalls commit-latency badly after a restart that must replay
+		// a long log.
+		for rf.commitIndex > rf.lastApplied && rf.lastApplied+1 >= rf.offset && rf.lastApplied+1 < len(rf.log)+rf.offset {
 			DPrintf("Svr %d Apply log %d into the channel", rf.me, rf.lastApplied+1)
 			msg := raftapi.ApplyMsg{
 				CommandValid: true,

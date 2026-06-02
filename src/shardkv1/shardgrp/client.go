@@ -2,7 +2,6 @@ package shardgrp
 
 import (
 	"log"
-	"math/rand"
 	"sync/atomic"
 	"time"
 
@@ -17,8 +16,6 @@ type Clerk struct {
 	servers []string
 	// You will have to modify this struct.
 	leaderId atomic.Int32
-	clientId int64
-	seqNum   atomic.Int64
 }
 
 func (ck *Clerk) LoadLeaderId() int {
@@ -32,19 +29,18 @@ func (ck *Clerk) StoreLeaderId(id int) {
 func MakeClerk(clnt *tester.Clnt, servers []string) *Clerk {
 	ck := &Clerk{clnt: clnt, servers: servers}
 	// You'll have to add code here.
-	// Generate unique client ID using time and random number
-	ck.clientId = time.Now().UnixNano() + rand.Int63()
-	ck.seqNum.Store(0)
 	return ck
 }
 
-func (ck *Clerk) Get(key string) (string, rpc.Tversion, rpc.Err) {
-	seqNum := ck.seqNum.Add(1)
+// Get/Put take the caller's clientId and seqNum so that the idempotency key is
+// stable per logical client operation across retries and shard migration. The
+// shardkv Clerk owns these identifiers; see shardkv1/client.go.
+func (ck *Clerk) Get(key string, clientId int64, seqNum int64) (string, rpc.Tversion, rpc.Err) {
 	leader_id := ck.LoadLeaderId()
 	defer ck.StoreLeaderId(leader_id)
 	failCount := 0
 	for {
-		args := rpc.GetArgs{Key: key, ClientId: ck.clientId, SeqNum: seqNum}
+		args := rpc.GetArgs{Key: key, ClientId: clientId, SeqNum: seqNum}
 		reply := rpc.GetReply{}
 		ok := ck.clnt.Call(ck.servers[leader_id], "KVServer.Get", &args, &reply)
 		if !ok || reply.Err == rpc.ErrWrongLeader {
@@ -62,15 +58,14 @@ func (ck *Clerk) Get(key string) (string, rpc.Tversion, rpc.Err) {
 	}
 }
 
-func (ck *Clerk) Put(key string, value string, version rpc.Tversion) rpc.Err {
+func (ck *Clerk) Put(key string, value string, version rpc.Tversion, clientId int64, seqNum int64) rpc.Err {
 	// You will have to modify this function.
-	seqNum := ck.seqNum.Add(1)
 	firstTry := true
 	leader_id := ck.LoadLeaderId()
 	defer ck.StoreLeaderId(leader_id)
 	failCount := 0
 	for {
-		args := rpc.PutArgs{Key: key, Value: value, Version: version, ClientId: ck.clientId, SeqNum: seqNum}
+		args := rpc.PutArgs{Key: key, Value: value, Version: version, ClientId: clientId, SeqNum: seqNum}
 		reply := rpc.PutReply{}
 		ok := ck.clnt.Call(ck.servers[leader_id], "KVServer.Put", &args, &reply)
 		if !ok || reply.Err == rpc.ErrWrongLeader {
@@ -98,7 +93,7 @@ func (ck *Clerk) Put(key string, value string, version rpc.Tversion) rpc.Err {
 	}
 }
 
-func (ck *Clerk) FreezeShard(s shardcfg.Tshid, num shardcfg.Tnum) ([]byte, rpc.Err) {
+func (ck *Clerk) FreezeShard(s shardcfg.Tshid, num shardcfg.Tnum) ([]byte, []byte, rpc.Err) {
 	// Your code here
 	leader_id := ck.LoadLeaderId()
 	defer ck.StoreLeaderId(leader_id)
@@ -113,20 +108,20 @@ func (ck *Clerk) FreezeShard(s shardcfg.Tshid, num shardcfg.Tnum) ([]byte, rpc.E
 			continue
 		}
 		if reply.Err == rpc.ErrVersion {
-			return nil, reply.Err
+			return nil, nil, reply.Err
 		}
 		if reply.Err == rpc.OK {
-			return reply.State, reply.Err
+			return reply.State, reply.Sessions, reply.Err
 		}
 		log.Fatalf("FreezeShard should not receive err message %v", reply.Err)
 	}
 }
 
-func (ck *Clerk) InstallShard(s shardcfg.Tshid, state []byte, num shardcfg.Tnum) rpc.Err {
+func (ck *Clerk) InstallShard(s shardcfg.Tshid, state []byte, sessions []byte, num shardcfg.Tnum) rpc.Err {
 	leader_id := ck.LoadLeaderId()
 	defer ck.StoreLeaderId(leader_id)
 	for {
-		args := shardrpc.InstallShardArgs{Shard: s, State: state, Num: num}
+		args := shardrpc.InstallShardArgs{Shard: s, State: state, Sessions: sessions, Num: num}
 		reply := shardrpc.InstallShardReply{}
 		ok := ck.clnt.Call(ck.servers[leader_id], "KVServer.InstallShard", &args, &reply)
 		if !ok || reply.Err == rpc.ErrWrongLeader {

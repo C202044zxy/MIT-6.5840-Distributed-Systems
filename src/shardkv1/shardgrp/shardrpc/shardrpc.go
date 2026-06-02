@@ -11,15 +11,17 @@ type FreezeShardArgs struct {
 }
 
 type FreezeShardReply struct {
-	State []byte
-	Num   shardcfg.Tnum
-	Err   rpc.Err
+	State    []byte
+	Sessions []byte // serialized client dedup table (for shard migration)
+	Num      shardcfg.Tnum
+	Err      rpc.Err
 }
 
 type InstallShardArgs struct {
-	Shard shardcfg.Tshid
-	State []byte
-	Num   shardcfg.Tnum
+	Shard    shardcfg.Tshid
+	State    []byte
+	Sessions []byte // serialized client dedup table (for shard migration)
+	Num      shardcfg.Tnum
 }
 
 type InstallShardReply struct {

@@ -147,7 +147,6 @@ func (kv *KVServer) putImpl(args *rpc.PutArgs, reply *rpc.PutReply) {
 		LastSeqNum: args.SeqNum,
 		LastReply:  *reply,
 	}
-	// fmt.Printf("me = %v, args = %v, map = %v\n", kv.me, args, kv.mp)
 }
 
 func (kv *KVServer) freezeShardImpl(args *shardrpc.FreezeShardArgs, reply *shardrpc.FreezeShardReply) {
@@ -173,13 +172,21 @@ func (kv *KVServer) freezeShardImpl(args *shardrpc.FreezeShardArgs, reply *shard
 	reply.Err = rpc.OK
 	reply.Num = args.Num
 	reply.State = b
+	// Migrate the client dedup table alongside the shard data so that a
+	// client retrying an in-flight op at the new owner is recognized as a
+	// duplicate (and gets the cached reply) instead of re-executing.
+	reply.Sessions = encodeSessions(kv.sessions)
 }
 
 func (kv *KVServer) installShardImpl(args *shardrpc.InstallShardArgs, reply *shardrpc.InstallShardReply) {
 	kv.mu.Lock()
 	defer kv.mu.Unlock()
-	if v, ok := kv.shardNums[args.Shard]; ok && args.Num < v {
-		reply.Err = rpc.ErrVersion
+	if v, ok := kv.shardNums[args.Shard]; ok && args.Num <= v {
+		// Duplicate or stale install. This shard has already been installed at
+		// this config number (or a newer one); plain Puts don't bump shardNums,
+		// so re-installing the (possibly empty) snapshot here would clobber
+		// writes accepted since. Treat as an idempotent no-op.
+		reply.Err = rpc.OK
 		return
 	}
 	kv.shardNums[args.Shard] = args.Num
@@ -192,7 +199,37 @@ func (kv *KVServer) installShardImpl(args *shardrpc.InstallShardArgs, reply *sha
 	for k, v := range shardMap {
 		kv.mp[k] = v
 	}
+	// Merge the migrated dedup table. seqNum is globally monotonic per client,
+	// so the entry with the larger LastSeqNum is the more recent op; keeping the
+	// max preserves the only op a client could still be retrying.
+	for clientId, incoming := range decodeSessions(args.Sessions) {
+		if cur, ok := kv.sessions[clientId]; !ok || incoming.LastSeqNum > cur.LastSeqNum {
+			kv.sessions[clientId] = incoming
+		}
+	}
 	reply.Err = rpc.OK
+}
+
+func encodeSessions(sessions map[int64]*ClientSession) []byte {
+	w := new(bytes.Buffer)
+	e := labgob.NewEncoder(w)
+	if err := e.Encode(sessions); err != nil {
+		log.Fatalf("encode sessions err %v", err)
+	}
+	return w.Bytes()
+}
+
+func decodeSessions(data []byte) map[int64]*ClientSession {
+	sessions := make(map[int64]*ClientSession)
+	if len(data) < 1 {
+		return sessions
+	}
+	r := bytes.NewBuffer(data)
+	d := labgob.NewDecoder(r)
+	if err := d.Decode(&sessions); err != nil {
+		log.Fatalf("decode sessions err %v", err)
+	}
+	return sessions
 }
 
 func (kv *KVServer) deleteShardImpl(args *shardrpc.DeleteShardArgs, reply *shardrpc.DeleteShardReply) {

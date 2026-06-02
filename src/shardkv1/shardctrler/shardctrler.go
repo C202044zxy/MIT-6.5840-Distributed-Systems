@@ -6,6 +6,7 @@ package shardctrler
 
 import (
 	"reflect"
+	"sync"
 	"time"
 
 	kvsrv "6.5840/kvsrv1"
@@ -115,29 +116,35 @@ func (sck *ShardCtrler) ChangeConfigTo(new *shardcfg.ShardConfig) {
 		return
 	}
 
+	var wg sync.WaitGroup
 	for shard := range old.Shards {
 		oldGid := old.Shards[shard]
 		newGid := new.Shards[shard]
 		if oldGid != newGid && oldGid != 0 && newGid != 0 {
-			srcClerk := shardgrp.MakeClerk(sck.clnt, old.Groups[oldGid])
-			dstClerk := shardgrp.MakeClerk(sck.clnt, new.Groups[newGid])
-			for {
-				state, err := srcClerk.FreezeShard(shardcfg.Tshid(shard), old.Num)
-				if err != rpc.OK {
-					continue
+			wg.Add(1)
+			go func(shard int, oldGid, newGid tester.Tgid) {
+				defer wg.Done()
+				srcClerk := shardgrp.MakeClerk(sck.clnt, old.Groups[oldGid])
+				dstClerk := shardgrp.MakeClerk(sck.clnt, new.Groups[newGid])
+				for {
+					state, sessions, err := srcClerk.FreezeShard(shardcfg.Tshid(shard), old.Num)
+					if err != rpc.OK {
+						continue
+					}
+					err = dstClerk.InstallShard(shardcfg.Tshid(shard), state, sessions, old.Num)
+					if err != rpc.OK {
+						continue
+					}
+					err = srcClerk.DeleteShard(shardcfg.Tshid(shard), old.Num)
+					if err != rpc.OK {
+						continue
+					}
+					break
 				}
-				err = dstClerk.InstallShard(shardcfg.Tshid(shard), state, old.Num)
-				if err != rpc.OK {
-					continue
-				}
-				err = srcClerk.DeleteShard(shardcfg.Tshid(shard), old.Num)
-				if err != rpc.OK {
-					continue
-				}
-				break
-			}
+			}(shard, oldGid, newGid)
 		}
 	}
+	wg.Wait()
 
 	// write it to original config. commit the whole process.
 	sck.putConfigKey("Config", newStr, rpc.Tversion(old.Num))

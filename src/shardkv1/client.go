@@ -9,6 +9,8 @@ package shardkv
 //
 
 import (
+	"math/rand"
+	"sync/atomic"
 	"time"
 
 	"6.5840/kvsrv1/rpc"
@@ -24,15 +26,21 @@ type Clerk struct {
 	sck  *shardctrler.ShardCtrler
 	// You will have to modify this struct.
 	grps map[tester.Tgid]*shardgrp.Clerk
+	// clientId is stable for this clerk and seqNum is allocated once per
+	// logical Get/Put, so the dedup key survives RPC retries, group restarts,
+	// and shard migration (the new owner inherits the dedup table).
+	clientId int64
+	seqNum   atomic.Int64
 }
 
 // The tester calls MakeClerk and passes in a shardctrler so that
 // client can call it's Query method
 func MakeClerk(clnt *tester.Clnt, sck *shardctrler.ShardCtrler) kvtest.IKVClerk {
 	ck := &Clerk{
-		clnt: clnt,
-		sck:  sck,
-		grps: make(map[tester.Tgid]*shardgrp.Clerk),
+		clnt:     clnt,
+		sck:      sck,
+		grps:     make(map[tester.Tgid]*shardgrp.Clerk),
+		clientId: time.Now().UnixNano() + rand.Int63(),
 	}
 	// You'll have to add code here.
 	return ck
@@ -45,6 +53,7 @@ func MakeClerk(clnt *tester.Clnt, sck *shardctrler.ShardCtrler) kvtest.IKVClerk 
 // calling shardgrp.MakeClerk(ck.clnt, servers).
 func (ck *Clerk) Get(key string) (string, rpc.Tversion, rpc.Err) {
 	// You will have to modify this function.
+	seqNum := ck.seqNum.Add(1)
 	for {
 		shard := shardcfg.Key2Shard(key)
 		cfg := ck.sck.Query()
@@ -54,7 +63,7 @@ func (ck *Clerk) Get(key string) (string, rpc.Tversion, rpc.Err) {
 			ck.grps[gid] = shardgrp.MakeClerk(ck.clnt, cfg.Groups[gid])
 			grp = ck.grps[gid]
 		}
-		value, version, err := grp.Get(key)
+		value, version, err := grp.Get(key, ck.clientId, seqNum)
 		if err != rpc.ErrWrongGroup {
 			return value, version, err
 		}
@@ -65,6 +74,7 @@ func (ck *Clerk) Get(key string) (string, rpc.Tversion, rpc.Err) {
 // Put a key to a shard group.
 func (ck *Clerk) Put(key string, value string, version rpc.Tversion) rpc.Err {
 	// You will have to modify this function.
+	seqNum := ck.seqNum.Add(1)
 	for {
 		shard := shardcfg.Key2Shard(key)
 		cfg := ck.sck.Query()
@@ -74,7 +84,7 @@ func (ck *Clerk) Put(key string, value string, version rpc.Tversion) rpc.Err {
 			ck.grps[gid] = shardgrp.MakeClerk(ck.clnt, cfg.Groups[gid])
 			grp = ck.grps[gid]
 		}
-		err := grp.Put(key, value, version)
+		err := grp.Put(key, value, version, ck.clientId, seqNum)
 		if err != rpc.ErrWrongGroup {
 			return err
 		}

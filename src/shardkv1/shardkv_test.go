@@ -2,7 +2,7 @@ package shardkv
 
 import (
 	//"log"
-	"fmt"
+
 	"testing"
 	"time"
 
@@ -447,15 +447,12 @@ func concurrentClerk(t *testing.T, nclnt int, reliable bool, part string) {
 	if ok := ts.joinGroups(sck, grps); !ok {
 		t.Fatalf("concurrentClerk: joinGroups failed")
 	}
-	fmt.Println("succ")
 
 	if ok := ts.leaveGroups(sck, grps); !ok {
 		t.Fatalf("concurrentClerk: leaveGroups failed")
 	}
-	fmt.Println("succ")
 
 	<-ch
-	fmt.Println("succ")
 
 	ts.CheckPorcupine()
 }
