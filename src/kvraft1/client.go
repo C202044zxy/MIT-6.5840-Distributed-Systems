@@ -126,3 +126,93 @@ func (ck *Clerk) Put(key string, value string, version rpc.Tversion) rpc.Err {
 		time.Sleep(10 * time.Millisecond)
 	}
 }
+
+// --- Transaction ---
+func VersionEq(key string, v rpc.Tversion) rpc.Compare {
+	return rpc.Compare{
+		Key:     key,
+		Target:  rpc.CmpVersion,
+		Op:      rpc.CmpEqual,
+		Version: v,
+	}
+}
+
+func ValueEq(key, val string) rpc.Compare {
+	return rpc.Compare{
+		Key:    key,
+		Target: rpc.CmpValue,
+		Op:     rpc.CmpEqual,
+		Value:  val,
+	}
+}
+
+func PutOp(key, val string) rpc.TxnOp {
+	return rpc.TxnOp{
+		Type:  rpc.OpPut,
+		Key:   key,
+		Value: val,
+	}
+}
+
+func GetOp(key string) rpc.TxnOp {
+	return rpc.TxnOp{
+		Type: rpc.OpGet,
+		Key:  key,
+	}
+}
+
+type Txn struct {
+	ck        *Clerk
+	conds     []rpc.Compare
+	then, els []rpc.TxnOp
+}
+
+func (ck *Clerk) Txn() *Txn {
+	return &Txn{ck: ck}
+}
+
+func (t *Txn) If(c ...rpc.Compare) *Txn {
+	t.conds = c
+	return t
+}
+
+func (t *Txn) Then(op ...rpc.TxnOp) *Txn {
+	t.then = op
+	return t
+}
+
+func (t *Txn) Else(op ...rpc.TxnOp) *Txn {
+	t.els = op
+	return t
+}
+
+func (t *Txn) Commit() (rpc.TxnReply, rpc.Err) {
+	ck := t.ck
+	seqNum := ck.seqNum.Add(1)
+	leader_id := ck.LoadLeaderId()
+	defer ck.StoreLeaderId(leader_id)
+	for {
+		args := rpc.TxnArgs{
+			Conds:    t.conds,
+			ThenOps:  t.then,
+			ElseOps:  t.els,
+			ClientId: ck.clientId,
+			SeqNum:   seqNum,
+		}
+		reply := rpc.TxnReply{}
+
+		ok := ck.clnt.Call(ck.servers[leader_id], "KVServer.Txn", &args, &reply)
+		if !ok {
+			leader_id = (leader_id + 1) % len(ck.servers)
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+
+		if reply.Err == rpc.OK {
+			return reply, rpc.OK
+		}
+
+		leader_id = (leader_id + 1) % len(ck.servers)
+		time.Sleep(10 * time.Millisecond)
+	}
+}

@@ -128,6 +128,118 @@ func (kv *KVServer) put_impl(args *rpc.PutArgs, reply *rpc.PutReply) {
 	// fmt.Printf("me = %v, args = %v, map = %v\n", kv.me, args, kv.mp)
 }
 
+// --- Transaction ---
+func (kv *KVServer) applyGet(key string) rpc.OpResult {
+	pair, ok := kv.mp[key]
+	if ok {
+		return rpc.OpResult{
+			Value:   pair.Value,
+			Version: pair.Version,
+			Exists:  true,
+			Err:     rpc.OK,
+		}
+	} else {
+		return rpc.OpResult{
+			Exists: false,
+			Err:    rpc.ErrNoKey,
+		}
+	}
+}
+
+func (kv *KVServer) applyPut(key, value string) rpc.OpResult {
+	// Fix(Claude): populate OpResult.Version with the new version after the
+	// Put. The plan (rpc.OpResult doc) specifies OpPut returns "new version
+	// after OpPut", but the executor previously returned only Err, leaving
+	// callers unable to learn the resulting version (e.g. to chain a CAS).
+	pair, ok := kv.mp[key]
+	var newVer rpc.Tversion
+	if ok {
+		newVer = pair.Version + 1
+	} else {
+		newVer = 1
+	}
+	kv.mp[key] = ValueVersion{value, newVer}
+	return rpc.OpResult{Version: newVer, Err: rpc.OK}
+}
+
+func (kv *KVServer) evalCompare(c rpc.Compare) bool {
+	pair, ok := kv.mp[c.Key]
+	if !ok {
+		return c.Target == rpc.CmpVersion && c.Op == rpc.CmpEqual && c.Version == 0
+	}
+
+	if c.Target == rpc.CmpVersion {
+		switch c.Op {
+		case rpc.CmpEqual:
+			return pair.Version == c.Version
+		case rpc.CmpNotEqual:
+			return pair.Version != c.Version
+		case rpc.CmpLess:
+			return pair.Version < c.Version
+		case rpc.CmpGreater:
+			return pair.Version > c.Version
+		default:
+			return false
+		}
+	} else {
+		switch c.Op {
+		case rpc.CmpEqual:
+			return pair.Value == c.Value
+		case rpc.CmpNotEqual:
+			return pair.Value != c.Value
+		case rpc.CmpLess:
+			return pair.Value < c.Value
+		case rpc.CmpGreater:
+			return pair.Value > c.Value
+		default:
+			return true
+		}
+	}
+}
+
+func (kv *KVServer) txn_impl(args *rpc.TxnArgs, reply *rpc.TxnReply) {
+	kv.mu.Lock()
+	defer kv.mu.Unlock()
+
+	if session, ok := kv.sessions[args.ClientId]; ok {
+		if args.SeqNum == session.LastSeqNum {
+			// Duplicate request - return cached result
+			*reply = session.LastReply.(rpc.TxnReply)
+			return
+		} else if args.SeqNum < session.LastSeqNum {
+			// Old request - should not happen, but return OK to be safe
+			reply.Err = rpc.OK
+			return
+		}
+	}
+
+	reply.Succeeded = true
+	ops := args.ThenOps
+	for _, c := range args.Conds {
+		if !kv.evalCompare(c) {
+			reply.Succeeded = false
+			ops = args.ElseOps
+			break
+		}
+	}
+
+	for _, op := range ops {
+		result := rpc.OpResult{}
+		if op.Type == rpc.OpGet {
+			result = kv.applyGet(op.Key)
+		} else {
+			result = kv.applyPut(op.Key, op.Value)
+		}
+		reply.Results = append(reply.Results, result)
+	}
+
+	reply.Err = rpc.OK
+	kv.sessions[args.ClientId] = &ClientSession{
+		LastSeqNum: args.SeqNum,
+		LastReply:  *reply,
+	}
+}
+
 // To type-cast req to the right type, take a look at Go's type switches or type
 // assertions below:
 //
@@ -143,6 +255,10 @@ func (kv *KVServer) DoOp(raw_req any) any {
 	case rpc.PutArgs:
 		reply := rpc.PutReply{}
 		kv.put_impl(&req, &reply)
+		return reply
+	case rpc.TxnArgs:
+		reply := rpc.TxnReply{}
+		kv.txn_impl(&req, &reply)
 		return reply
 	default:
 		fmt.Printf("DoOp: unknown req type = %T\n", raw_req)
@@ -204,6 +320,15 @@ func (kv *KVServer) Put(args *rpc.PutArgs, reply *rpc.PutReply) {
 	*reply = rep.(rpc.PutReply)
 }
 
+func (kv *KVServer) Txn(args *rpc.TxnArgs, reply *rpc.TxnReply) {
+	err, rep := kv.rsm.Submit(*args)
+	if err != rpc.OK {
+		reply.Err = err
+		return
+	}
+	*reply = rep.(rpc.TxnReply)
+}
+
 // the tester calls Kill() when a KVServer instance won't
 // be needed again. for your convenience, we supply
 // code to set rf.dead (without needing a lock),
@@ -233,6 +358,8 @@ func StartKVServer(servers []*labrpc.ClientEnd, gid tester.Tgid, me int, persist
 	labgob.Register(rpc.PutReply{})
 	labgob.Register(rpc.GetReply{})
 	labgob.Register(ClientSession{})
+	labgob.Register(rpc.TxnArgs{})
+	labgob.Register(rpc.TxnReply{})
 
 	kv := &KVServer{me: me}
 

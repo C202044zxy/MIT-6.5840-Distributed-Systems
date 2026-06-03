@@ -50,6 +50,16 @@ func (ts *Test) MakeClerk() kvtest.IKVClerk {
 	return &kvtest.TestClerk{ck, clnt}
 }
 
+// MakeTxnClerk returns the concrete *Clerk (not wrapped in a kvtest.TestClerk)
+// so transaction tests can drive the fluent Txn/Commit API, which the
+// kvtest.IKVClerk interface does not expose. The *Clerk also implements
+// Get/Put, so the same handle can seed and verify state.
+func (ts *Test) MakeTxnClerk() *Clerk {
+	clnt := ts.Config.MakeClient()
+	ck := MakeClerk(clnt, ts.Group(Gid).SrvNames())
+	return ck.(*Clerk)
+}
+
 func (ts *Test) DeleteClerk(ck kvtest.IKVClerk) {
 	tck := ck.(*kvtest.TestClerk)
 	ts.DeleteClient(tck.Clnt)
