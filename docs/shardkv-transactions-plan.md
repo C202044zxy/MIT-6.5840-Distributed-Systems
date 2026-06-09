@@ -165,10 +165,14 @@ decided  map[int64]bool                  // Tid -> committed? (idempotent Commit
     `VoteCondFail` (locks held so the decision is stable until Abort).
   - Execute Gets into `getResults` (read current value/version); buffer Puts
     (do **not** mutate `kv.mp`). Store `prepared[Tid]`. `VoteCommit`.
-- `commitImpl`: apply buffered Puts using the version-bump logic from
-  `putImpl` (`server.go:125-143`), fill `CommitReply.Results` with new versions,
-  release `prepared[Tid]` locks, set `decided[Tid]=true`. Idempotent if already
-  decided.
+- `commitImpl`: apply buffered Puts, deriving each new version from the current
+  `kv.mp` entry at commit (`new = cur.Version + 1`, or `1` if absent) rather than
+  from a version snapshotted at prepare — the lock is held from prepare through
+  commit so the current version is stable, and applying in order makes repeated
+  writes to the same key bump correctly. The buffered Put therefore carries only
+  `{Key, Value}` (the txn Put is unconditional; version preconditions live in
+  `Conds`). Fill `CommitReply.Results` with new versions, release `prepared[Tid]`
+  locks, set `decided[Tid]=true`. Idempotent if already decided.
 - `abortImpl`: drop buffer, release locks, `decided[Tid]=false`. Idempotent.
 - **2PL on single-key ops:** in `getImpl`/`putImpl`, after the ownership check, if
   the key is in `locks` (held by any txn) → return `rpc.ErrLocked`. Add `ErrLocked`

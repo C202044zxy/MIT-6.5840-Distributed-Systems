@@ -14,6 +14,10 @@ const (
 	// For future kvraft lab
 	ErrWrongLeader = "ErrWrongLeader"
 	ErrWrongGroup  = "ErrWrongGroup"
+
+	// For shardkv transaction
+	ErrLocked = "ErrLocked" // key is locked by an in-flight txn; caller should retry
+	ErrRetry  = "ErrRetry"  // cross-shard txn aborted (wait-die/stale config); client retries
 )
 
 type Tversion uint64

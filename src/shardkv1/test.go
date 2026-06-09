@@ -69,6 +69,16 @@ func (ts *Test) MakeClerk() kvtest.IKVClerk {
 	return &kvtest.TestClerk{ck, clnt}
 }
 
+// MakeTxnClerk returns the concrete *Clerk (the kvtest.IKVClerk interface only
+// exposes Get/Put) so cross-shard transaction tests can drive the
+// Begin/If/Do/Commit builder. The same handle also seeds and verifies via
+// Get/Put. The second return value is the client handle for cleanup.
+func (ts *Test) MakeTxnClerk() (*Clerk, *tester.Clnt) {
+	clnt := ts.Config.MakeClient()
+	ck := MakeClerk(clnt, ts.makeShardCtrler())
+	return ck.(*Clerk), clnt
+}
+
 func (ts *Test) DeleteClerk(ck kvtest.IKVClerk) {
 	tck := ck.(*kvtest.TestClerk)
 	ts.DeleteClient(tck.Clnt)
@@ -123,7 +133,7 @@ func (ts *Test) setupKVService() tester.Tgid {
 }
 
 func (ts *Test) StartServerShardGrp(servers []*labrpc.ClientEnd, gid tester.Tgid, me int, persister *tester.Persister) []tester.IService {
-	return shardgrp.StartServerShardGrp(servers, gid, me, persister, ts.maxraftstate)
+	return shardgrp.StartServerShardGrp(servers, gid, me, persister, ts.maxraftstate, ts.Config.MakeClient)
 }
 
 func (ts *Test) checkMember(sck *shardctrler.ShardCtrler, gid tester.Tgid) bool {
