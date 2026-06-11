@@ -27,6 +27,12 @@ const (
 	Leader
 )
 
+// leaseDuration is how long a majority-acked heartbeat round entitles the
+// leader to serve local reads, and equally how long a fresh leader must
+// hold off committing. Renewed every 150ms heartbeat; safety does not
+// depend on its value (see holdoff rule), only liveness/testability do.
+const leaseDuration = 500 * time.Millisecond
+
 type Log struct {
 	Command interface{}
 	Term    int
@@ -75,6 +81,16 @@ type Raft struct {
 	pendingSnapshotIndex int
 	pendingSnapshotTerm  int
 	hasPendingSnapshot   bool
+
+	// Lease read state (volatile, never persisted; all guarded by rf.mu).
+	// leaseEnabled gates the whole feature: when false this peer behaves
+	// exactly as before. leaseExpiry is the instant until which a
+	// majority-acked heartbeat round entitles this leader to serve local
+	// reads. holdoffUntil is the instant before which a freshly elected
+	// leader must not advance commitIndex (the new-leader holdoff rule).
+	leaseEnabled bool
+	leaseExpiry  time.Time
+	holdoffUntil time.Time
 }
 
 // return currentTerm and whether this server
@@ -83,6 +99,44 @@ func (rf *Raft) GetState() (int, bool) {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 	return rf.currentTerm, (rf.state == Leader)
+}
+
+// EnableLeaseRead turns on lease maintenance and the new-leader commit
+// holdoff for this peer. Called once at startup (before the first
+// election matters) by services that intend to use LeaseRead. Raft peers
+// that never enable it behave exactly as before.
+func (rf *Raft) EnableLeaseRead() {
+	rf.mu.Lock()
+	defer rf.mu.Unlock()
+	rf.leaseEnabled = true
+}
+
+// LeaseRead returns (readIndex, true) if this peer may serve a local read
+// right now: it is leader, its lease is valid, its new-leader holdoff has
+// passed, and it has committed an entry of its current term. readIndex is
+// the current commitIndex; the caller must wait until its state machine
+// has applied through readIndex before reading. Returns (0, false)
+// otherwise, in which case the caller should use the log path.
+func (rf *Raft) LeaseRead() (int, bool) {
+	rf.mu.Lock()
+	defer rf.mu.Unlock()
+
+	// Gate 1: the leader knows about every committed entry only once the entry
+	// *at commitIndex* carries its current term (Raft §5.4.2 / Figure 8).
+	// Fix(Claude): the term must be read at commitIndex, not at the last log
+	// entry. A current-term entry can sit at the tail of the log (appended but
+	// not yet committed) while commitIndex still lags on an older-term entry
+	// the leader has not proven it has fully caught up to; using the last
+	// entry's term would open the fast path and serve a stale read.
+	commitTerm := rf.lastIncludedTerm
+	if rf.commitIndex >= rf.offset {
+		commitTerm = rf.log[rf.commitIndex-rf.offset].Term
+	}
+	if rf.leaseEnabled && rf.state == Leader && time.Now().Before(rf.leaseExpiry) &&
+		time.Now().After(rf.holdoffUntil) && commitTerm == rf.currentTerm {
+		return rf.commitIndex, true
+	}
+	return 0, false
 }
 
 // example code to send a RequestVote RPC to a server.
@@ -215,6 +269,12 @@ func (rf *Raft) convert2Leader() {
 	}
 	// Leader always matches its own log.
 	rf.matchIndex[rf.me] = len(rf.log) - 1 + rf.offset
+	// set hold off timer
+	rf.holdoffUntil = time.Now().Add(leaseDuration)
+	// Fix(Claude): clear any lease carried over from a previous leadership; a
+	// re-elected leader must re-earn its lease from a fresh majority-acked
+	// round and must not serve fast reads on a stale expiry.
+	rf.leaseExpiry = time.Time{}
 	go rf.heartbeat()
 	go rf.replicateLog()
 	go rf.commitLog()
@@ -233,6 +293,18 @@ func (rf *Raft) commitLog() {
 		if rf.state != Leader || rf.currentTerm != term {
 			rf.mu.Unlock()
 			return
+		}
+		// Fix(Claude): enforce the new-leader holdoff. A freshly elected leader
+		// must not advance commitIndex (and therefore must not apply or ack
+		// anything) until the previous leader's lease has provably expired
+		// (holdoffUntil). Without this gate the holdoff rule was set but never
+		// enforced, so this leader could commit/ack a write while a deposed
+		// leader's still-valid lease served stale local reads — breaking
+		// linearizability.
+		if rf.leaseEnabled && time.Now().Before(rf.holdoffUntil) {
+			rf.mu.Unlock()
+			time.Sleep(time.Duration(5) * time.Millisecond)
+			continue
 		}
 		if rf.commitIndex+1 < rf.offset+len(rf.log) {
 			for N := rf.commitIndex + 1; N < rf.offset+len(rf.log); N++ {

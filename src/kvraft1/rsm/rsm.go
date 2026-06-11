@@ -90,6 +90,40 @@ func (rsm *RSM) Raft() raftapi.Raft {
 	return rsm.rf
 }
 
+// EnableLeaseRead forwards to the underlying Raft if it supports leases.
+func (rsm *RSM) EnableLeaseRead() {
+	// TODO: type-assert rsm.rf to interface{ EnableLeaseRead() } and forward.
+	rsm.rf.EnableLeaseRead()
+}
+
+// ReadIndex asks Raft for a lease-protected read index. (0,false) means
+// "no fast path right now" — fall back to Submit.
+func (rsm *RSM) ReadIndex() (int, bool) {
+	// TODO: type-assert rsm.rf to interface{ LeaseRead() (int, bool) } and forward.
+	return rsm.rf.LeaseRead()
+}
+
+// WaitApplied blocks until the local state machine has applied through
+// index, or returns false after timeout (caller falls back to Submit).
+func (rsm *RSM) WaitApplied(index int, timeout time.Duration) bool {
+	// TODO: poll rsm.lastApplied under rsm.mu (~1ms period) up to timeout.
+	expiry := time.Now().Add(timeout)
+	for time.Now().Before(expiry) {
+		rsm.mu.Lock()
+		if rsm.lastApplied >= index {
+			// Fix(Claude): release rsm.mu before returning — the original
+			// returned while still holding the lock, which permanently
+			// deadlocked the reader goroutine (and every later Submit) on the
+			// first successful fast read.
+			rsm.mu.Unlock()
+			return true
+		}
+		rsm.mu.Unlock()
+		time.Sleep(time.Millisecond)
+	}
+	return false
+}
+
 func (rsm *RSM) NextId() int {
 	return int(rand.Int63())
 }

@@ -6,6 +6,7 @@ import (
 	"log"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"6.5840/kvraft1/rsm"
 	"6.5840/kvsrv1/rpc"
@@ -300,6 +301,23 @@ func (kv *KVServer) Get(args *rpc.GetArgs, reply *rpc.GetReply) {
 	// Your code here. Use kv.rsm.Submit() to submit args
 	// You can use go's type casts to turn the any return value
 	// of Submit() into a GetReply: rep.(rpc.GetReply)
+
+	if readIndex, ok := kv.rsm.ReadIndex(); ok {
+		if kv.rsm.WaitApplied(readIndex, 100*time.Millisecond) {
+			kv.mu.Lock()
+			pair, exists := kv.mp[args.Key]
+			if exists {
+				reply.Value = pair.Value
+				reply.Version = pair.Version
+				reply.Err = rpc.OK
+			} else {
+				reply.Err = rpc.ErrNoKey
+			}
+			kv.mu.Unlock()
+			return
+		}
+	}
+
 	err, rep := kv.rsm.Submit(*args)
 	if err != rpc.OK {
 		reply.Err = err
@@ -368,6 +386,8 @@ func StartKVServer(servers []*labrpc.ClientEnd, gid tester.Tgid, me int, persist
 	kv.sessions = make(map[int64]*ClientSession)
 
 	kv.rsm = rsm.MakeRSM(servers, me, persister, maxraftstate, kv)
+	// Opt into lease reads so Get can take the fast path (see Get).
+	kv.rsm.EnableLeaseRead()
 	// You may need initialization code here.
 	return []tester.IService{kv, kv.rsm.Raft()}
 }

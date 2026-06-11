@@ -17,6 +17,9 @@ type Raft interface {
 	// For the tester to indicate to your code that is should cleanup
 	// any long-running go routines.
 	Kill()
+
+	LeaseRead() (int, bool)
+	EnableLeaseRead()
 }
 
 // As each Raft peer becomes aware that successive log entries are

@@ -119,6 +119,8 @@ func (rf *Raft) heartbeat() {
 		me := rf.me
 		rf.mu.Unlock()
 
+		succCount := 1
+		newLeaseExpiry := time.Now().Add(leaseDuration)
 		for i := 0; i < rf.numPeers; i++ {
 			if i == rf.me {
 				continue
@@ -145,6 +147,10 @@ func (rf *Raft) heartbeat() {
 				if rf.currentTerm != term || rf.state != Leader {
 					// the state has changed. halt
 					return
+				}
+				succCount++
+				if 2*succCount >= rf.numPeers && rf.leaseExpiry.Before(newLeaseExpiry) {
+					rf.leaseExpiry = newLeaseExpiry
 				}
 			}(i)
 		}
