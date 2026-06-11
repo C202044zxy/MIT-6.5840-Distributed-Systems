@@ -51,7 +51,12 @@ func MakeClerk(clnt *tester.Clnt, servers []string) kvtest.IKVClerk {
 func (ck *Clerk) Get(key string) (string, rpc.Tversion, rpc.Err) {
 	seqNum := ck.seqNum.Add(1)
 	leader_id := ck.LoadLeaderId()
-	defer ck.StoreLeaderId(leader_id)
+	// Fix(Claude): a deferred call evaluates its arguments at the defer
+	// statement, so `defer ck.StoreLeaderId(leader_id)` captured the *initial*
+	// leader_id and always stored it back unchanged — the leader cache never
+	// updated and every op re-walked from server 0. Wrap in a closure so the
+	// final discovered leader_id is what gets cached.
+	defer func() { ck.StoreLeaderId(leader_id) }()
 	for {
 		args := rpc.GetArgs{Key: key, ClientId: ck.clientId, SeqNum: seqNum}
 		reply := rpc.GetReply{}
@@ -96,7 +101,8 @@ func (ck *Clerk) Put(key string, value string, version rpc.Tversion) rpc.Err {
 	seqNum := ck.seqNum.Add(1)
 	firstTry := true
 	leader_id := ck.LoadLeaderId()
-	defer ck.StoreLeaderId(leader_id)
+	// Fix(Claude): cache the discovered leader, not the initial one (see Get).
+	defer func() { ck.StoreLeaderId(leader_id) }()
 	for {
 		args := rpc.PutArgs{Key: key, Value: value, Version: version, ClientId: ck.clientId, SeqNum: seqNum}
 		reply := rpc.PutReply{}
@@ -190,7 +196,8 @@ func (t *Txn) Commit() (rpc.TxnReply, rpc.Err) {
 	ck := t.ck
 	seqNum := ck.seqNum.Add(1)
 	leader_id := ck.LoadLeaderId()
-	defer ck.StoreLeaderId(leader_id)
+	// Fix(Claude): cache the discovered leader, not the initial one (see Get).
+	defer func() { ck.StoreLeaderId(leader_id) }()
 	for {
 		args := rpc.TxnArgs{
 			Conds:    t.conds,
